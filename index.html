@@ -383,5 +383,763 @@ window.onload = () => {
 
 </script>
 
+<script>
+// Hilfsfunktion: MwSt aus Bruttobetrag berechnen
+function mwstAusBrutto(brutto, steuersatz) {
+  return brutto * steuersatz / (100 + steuersatz);
+}
+
+// Login
+function checkLogin() {
+  const user = document.getElementById('loginUser').value.trim();
+  const pass = document.getElementById('loginPass').value.trim();
+  if (user === "CasaDivani" && pass === "CD2025") {
+    document.getElementById('loginModal').style.display = 'none';
+  } else {
+    document.getElementById('loginError').innerText = "Benutzername oder Passwort falsch!";
+  }
+}
+document.getElementById('loginPass').addEventListener('keyup', function(e) {
+  if (e.key === "Enter") checkLogin();
+});
+
+// Daten
+let lager = [], aktuelleKaufvertragArtikel = [], archiv = [], laufendeNummern = {};
+
+let aktuellBearbeitenArchivIndex = null;
+let aktuellBearbeitenArtikelIndex = null;
+
+// Tabs
+function switchTab(tabId) {
+  document.querySelectorAll('.tab').forEach(t => t.classList.remove('active'));
+  document.querySelectorAll('.tab-content').forEach(c => c.classList.remove('active'));
+  document.querySelector(`[onclick="switchTab('${tabId}')"]`).classList.add('active');
+  document.getElementById(tabId).classList.add('active');
+  if (tabId === 'verkaufTab') updateVerkaufTabelle();
+  if (tabId === 'archivTab') updateArchivTabelle();
+  if (tabId === 'steuerTab') updateSteuerTabelle();
+  if (tabId === 'umsatzTab') updateUmsatzTabelle();
+  if (tabId === 'forderungenTab') updateForderungenVerbindlichkeiten();
+  if (tabId === 'artikelTab') filterLager();
+}
+
+// Artikelverwaltung
+function openArtikelAddModal() {
+  ['addArtikelNummer','addArtikelName','addArtikelBeschreibung','addArtikelAuftragsNummer','addArtikelWareneingang','addArtikelEK','addArtikelVK','addArtikelMenge','addArtikelBezahlt'].forEach(id => document.getElementById(id).value = '');
+  document.getElementById('addArtikelLager').checked = false;
+  document.getElementById('addArtikelKommission').checked = false;
+  document.getElementById('addArtikelInAusstellung').checked = false;
+  document.getElementById('addArtikelSteuer').value = 19;
+  document.getElementById('artikelAddModal').style.display = 'flex';
+}
+
+function closeArtikelAddModal() {
+  document.getElementById('artikelAddModal').style.display = 'none';
+}
+
+function artikelHinzufuegenFromModal() {
+  const artikelNummer = document.getElementById('addArtikelNummer').value.trim();
+  const name = document.getElementById('addArtikelName').value.trim();
+  const beschreibung = document.getElementById('addArtikelBeschreibung').value.trim();
+  const auftragsNummer = document.getElementById('addArtikelAuftragsNummer').value.trim();
+  const wareneingang = document.getElementById('addArtikelWareneingang').value;
+  const lagerHerkunft = document.getElementById('addArtikelLager').checked;
+  const kommissionHerkunft = document.getElementById('addArtikelKommission').checked;
+  const ek = parseFloat(document.getElementById('addArtikelEK').value);
+  const vk = parseFloat(document.getElementById('addArtikelVK').value);
+  const menge = parseInt(document.getElementById('addArtikelMenge').value);
+  const steuer = parseInt(document.getElementById('addArtikelSteuer').value);
+  const inAusstellung = document.getElementById('addArtikelInAusstellung').checked;
+  const bezahlt = document.getElementById('addArtikelBezahlt').value || null;
+
+  if (!artikelNummer || !name || isNaN(ek) || isNaN(vk) || isNaN(menge) || menge <= 0) {
+    alert("Bitte alle Felder korrekt ausfüllen!");
+    return;
+  }
+
+  const marge = (vk / ek).toFixed(2);
+
+  lager.push({ artikelNummer, name, beschreibung, auftragsNummer, wareneingang, lagerHerkunft, kommissionHerkunft, ek, vk, menge, steuer, inAusstellung, marge, bezahlt });
+  closeArtikelAddModal();
+  filterLager();
+  updateVerkaufTabelle();
+}
+
+function editArtikel(index) {
+  const a = lager[index];
+  aktuellBearbeitenIndex = index;
+  document.getElementById('editArtikelNummer').value = a.artikelNummer;
+  document.getElementById('editArtikelName').value = a.name;
+  document.getElementById('editArtikelBeschreibung').value = a.beschreibung;
+  document.getElementById('editArtikelAuftragsNummer').value = a.auftragsNummer;
+  document.getElementById('editArtikelWareneingang').value = a.wareneingang || '';
+  document.getElementById('editArtikelLager').checked = a.lagerHerkunft;
+  document.getElementById('editArtikelKommission').checked = a.kommissionHerkunft;
+  document.getElementById('editArtikelEK').value = a.ek;
+  document.getElementById('editArtikelVK').value = a.vk;
+  document.getElementById('editArtikelMenge').value = a.menge;
+  document.getElementById('editArtikelSteuer').value = a.steuer;
+  document.getElementById('editArtikelInAusstellung').checked = a.inAusstellung;
+  document.getElementById('editArtikelBezahlt').value = a.bezahlt || '';
+  document.getElementById('artikelEditModal').style.display = 'flex';
+}
+
+function artikelAenderungSpeichern() {
+  if (aktuellBearbeitenIndex === null) return;
+  const ek = parseFloat(document.getElementById('editArtikelEK').value);
+  const vk = parseFloat(document.getElementById('editArtikelVK').value);
+  lager[aktuellBearbeitenIndex] = {
+    artikelNummer: document.getElementById('editArtikelNummer').value.trim(),
+    name: document.getElementById('editArtikelName').value.trim(),
+    beschreibung: document.getElementById('editArtikelBeschreibung').value.trim(),
+    auftragsNummer: document.getElementById('editArtikelAuftragsNummer').value.trim(),
+    wareneingang: document.getElementById('editArtikelWareneingang').value || null,
+    lagerHerkunft: document.getElementById('editArtikelLager').checked,
+    kommissionHerkunft: document.getElementById('editArtikelKommission').checked,
+    ek, vk,
+    menge: parseInt(document.getElementById('editArtikelMenge').value),
+    steuer: parseInt(document.getElementById('editArtikelSteuer').value),
+    inAusstellung: document.getElementById('editArtikelInAusstellung').checked,
+    marge: (vk / ek).toFixed(2),
+    bezahlt: document.getElementById('editArtikelBezahlt').value || null
+  };
+  aktuellBearbeitenIndex = null;
+  document.getElementById('artikelEditModal').style.display = 'none';
+  filterLager();
+  updateVerkaufTabelle();
+  updateForderungenVerbindlichkeiten();
+}
+
+function isArtikelComplete(a) {
+  return a.artikelNummer && a.name && a.beschreibung && a.auftragsNummer && a.wareneingang && (a.lagerHerkunft || a.kommissionHerkunft) && a.ek && a.vk && a.menge && a.steuer && a.bezahlt;
+}
+
+function filterLager() {
+  const filter = document.getElementById('lagerSuche').value.toLowerCase().trim();
+  const terms = filter.split(/\s+/);
+  const table = document.getElementById('lagerTabelle');
+  table.innerHTML = `<tr><th>Nr.</th><th>Name</th><th>Beschreibung</th><th>AuftragsNr.</th><th>Wareneingang</th><th>Herkunft</th><th>EK brutto</th><th>VK brutto</th><th>Marge Faktor</th><th>Menge</th><th>Steuer %</th><th>In Ausstellung</th><th>Aktionen</th><th>Bezahlt</th></tr>`;
+
+  lager.forEach((a, i) => {
+    const text = (a.artikelNummer + ' ' + a.name + ' ' + a.beschreibung).toLowerCase();
+    if (terms.every(term => text.includes(term))) {
+      const herkunft = [];
+      if (a.lagerHerkunft) herkunft.push('L');
+      if (a.kommissionHerkunft) herkunft.push('B');
+      const herkunftText = herkunft.join(', ') || '-';
+
+      const row = table.insertRow();
+      if (isArtikelComplete(a)) row.classList.add('complete');
+      row.insertCell(0).innerText = a.artikelNummer;
+      row.insertCell(1).innerText = a.name;
+      row.insertCell(2).innerText = a.beschreibung;
+      row.insertCell(3).innerText = a.auftragsNummer;
+      row.insertCell(4).innerText = a.wareneingang || '-';
+      row.insertCell(5).innerText = herkunftText;
+      row.insertCell(6).innerText = a.ek.toFixed(2);
+      row.insertCell(7).innerText = a.vk.toFixed(2);
+      row.insertCell(8).innerText = a.marge;
+      row.insertCell(9).innerText = a.menge;
+      row.insertCell(10).innerText = a.steuer + '%';
+      row.insertCell(11).innerText = a.inAusstellung ? 'Ja' : 'Nein';
+
+      const cell = row.insertCell(12);
+      const btnEdit = document.createElement('button');
+      btnEdit.className = 'btn btn-edit'; btnEdit.innerText = 'Bearbeiten';
+      btnEdit.onclick = () => editArtikel(i);
+      const btnDel = document.createElement('button');
+      btnDel.className = 'btn btn-delete'; btnDel.innerText = 'Löschen';
+      btnDel.onclick = () => { lager.splice(i, 1); filterLager(); updateVerkaufTabelle(); };
+      cell.appendChild(btnEdit);
+      cell.appendChild(btnDel);
+
+      row.insertCell(13).innerText = a.bezahlt || '-';
+    }
+  });
+}
+
+// Kaufvertrag
+function updateVerkaufTabelle() {
+  const filter = document.getElementById('verkaufSuche').value.toLowerCase().trim();
+  const terms = filter.split(/\s+/);
+  const table = document.getElementById('verkaufTabelle');
+  table.innerHTML = '<tr><th>Artikelname</th><th>Artikelnummer</th><th>Beschreibung</th><th>VK brutto</th><th>Menge</th><th>MwSt €</th><th>Aktion</th></tr>';
+  lager.forEach((a, i) => {
+    const text = (a.artikelNummer + ' ' + a.name + ' ' + a.beschreibung).toLowerCase();
+    if (a.menge > 0 && terms.every(term => text.includes(term))) {
+      const mwst = mwstAusBrutto(a.vk, a.steuer);
+      const row = table.insertRow();
+      row.insertCell(0).innerText = a.name;
+      row.insertCell(1).innerText = a.artikelNummer;
+      row.insertCell(2).innerText = a.beschreibung;
+      row.insertCell(3).innerText = a.vk.toFixed(2);
+      row.insertCell(4).innerText = a.menge;
+      row.insertCell(5).innerText = mwst.toFixed(2);
+      const cell = row.insertCell(6);
+      const btn = document.createElement('button');
+      btn.className = 'btn btn-verkaufen'; btn.innerText = 'Hinzufügen';
+      btn.onclick = () => addToKaufvertrag(i);
+      cell.appendChild(btn);
+    }
+  });
+}
+
+function addToKaufvertrag(index) {
+  const artikel = lager[index];
+  aktuelleKaufvertragArtikel.push({ ...artikel });
+  artikel.menge -= 1;
+  if (artikel.menge <= 0) lager.splice(index, 1);
+  filterLager();
+  updateVerkaufTabelle();
+  updateAktuelleKaufvertragTabelle();
+}
+
+function updateAktuelleKaufvertragTabelle() {
+  const table = document.getElementById('aktuelleKaufvertragTabelle');
+  table.innerHTML = '<tr><th>Artikelname</th><th>Artikelnummer</th><th>Beschreibung</th><th>Menge</th><th>VK brutto</th><th>MwSt €</th><th>Aktion</th></tr>';
+  aktuelleKaufvertragArtikel.forEach((a, i) => {
+    const mwst = mwstAusBrutto(a.vk, a.steuer);
+    const row = table.insertRow();
+    row.insertCell(0).innerText = a.name;
+    row.insertCell(1).innerText = a.artikelNummer;
+    row.insertCell(2).innerText = a.beschreibung;
+    row.insertCell(3).innerText = 1;
+    row.insertCell(4).innerText = a.vk.toFixed(2);
+    row.insertCell(5).innerText = mwst.toFixed(2);
+    const cell = row.insertCell(6);
+    const btn = document.createElement('button');
+    btn.className = 'btn btn-delete'; btn.innerText = 'Entfernen';
+    btn.onclick = () => removeFromKaufvertrag(i);
+    cell.appendChild(btn);
+  });
+}
+
+function removeFromKaufvertrag(index) {
+  const a = aktuelleKaufvertragArtikel[index];
+  const exist = lager.find(x => x.artikelNummer === a.artikelNummer);
+  if (exist) exist.menge += 1;
+  else lager.push({ ...a, menge: 1 });
+  aktuelleKaufvertragArtikel.splice(index, 1);
+  filterLager();
+  updateVerkaufTabelle();
+  updateAktuelleKaufvertragTabelle();
+}
+
+function openKundeModal() { document.getElementById('kundeModal').style.display = 'flex'; }
+function closeKundeModal() { document.getElementById('kundeModal').style.display = 'none'; }
+function toggleUeberweisungDatum() {
+  const sel = document.getElementById('kundeZahlungsart').value;
+  document.getElementById('ueberweisungsDatum').style.display = (sel === 'Überweisung') ? 'block' : 'none';
+}
+
+function saveKaufvertrag() {
+  if (aktuelleKaufvertragArtikel.length === 0) { alert("Keine Artikel im Kaufvertrag!"); return; }
+  const vorname = document.getElementById('kundeVorname').value.trim();
+  const nachname = document.getElementById('kundeNachname').value.trim();
+  if (!vorname || !nachname) { alert("Bitte Kundendaten ausfüllen!"); return; }
+
+  const kunde = {
+    vorname, nachname,
+    strasse: document.getElementById('kundeStrasse').value,
+    plz: document.getElementById('kundePLZ').value,
+    ruf: document.getElementById('kundeRuf').value,
+    email: document.getElementById('kundeEmail').value,
+    anzahlung: parseFloat(document.getElementById('kundeAnzahlung').value) || 0,
+    zahlungsart: document.getElementById('kundeZahlungsart').value,
+    ueberweisungsDatum: document.getElementById('ueberweisungsDatum').value
+  };
+
+  const jahr = new Date().getFullYear();
+  if (!laufendeNummern[jahr]) laufendeNummern[jahr] = 0;
+  laufendeNummern[jahr] += 1;
+  const kaufvertragsnummer = `CD${jahr}${String(laufendeNummern[jahr]).padStart(3, '0')}`;
+
+  let gesamt = 0;
+  aktuelleKaufvertragArtikel.forEach(a => gesamt += a.vk);
+
+  const originalRestbetrag = gesamt - kunde.anzahlung;
+
+  archiv.push({
+    kaufvertragsnummer,
+    kunde,
+    datum: new Date().toLocaleDateString(),
+    gesamtbetrag: gesamt,
+    artikel: [...aktuelleKaufvertragArtikel],
+    anzahlung: kunde.anzahlung,
+    restbetrag: originalRestbetrag,
+    originalRestbetrag: originalRestbetrag,
+    auftragsNummer: '',
+    ausgeliefert: null,
+    abgerechnet: null,
+    herstellerBezahlt: null
+  });
+
+  aktuelleKaufvertragArtikel = [];
+  updateAktuelleKaufvertragTabelle();
+  updateArchivTabelle();
+  updateSteuerTabelle();
+  updateUmsatzTabelle();
+  closeKundeModal();
+  ['kundeVorname', 'kundeNachname', 'kundeStrasse', 'kundePLZ', 'kundeRuf', 'kundeEmail', 'kundeAnzahlung', 'ueberweisungsDatum'].forEach(id => document.getElementById(id).value = '');
+  document.getElementById('kundeZahlungsart').value = 'Bar';
+  toggleUeberweisungDatum();
+  alert("Kaufvertrag abgeschlossen und Kunde angelegt!");
+}
+
+function editKaufvertrag(index) {
+  const k = archiv[index];
+  aktuellBearbeitenArchivIndex = index;
+  document.getElementById('editAusgeliefert').value = k.ausgeliefert || '';
+  document.getElementById('editAbgerechnet').value = k.abgerechnet || '';
+  document.getElementById('editHerstellerBezahlt').value = k.herstellerBezahlt || '';
+  document.getElementById('editAuftragsNummer').value = k.auftragsNummer || '';
+  const table = document.getElementById('editArtikelTabelle');
+  table.innerHTML = '<tr><th>Artikelname</th><th>Artikelnummer</th><th>Beschreibung</th><th>EK brutto</th><th>VK brutto</th><th>Aktionen</th></tr>';
+  k.artikel.forEach((a, j) => {
+    const row = table.insertRow();
+    row.insertCell(0).innerText = a.name;
+    row.insertCell(1).innerText = a.artikelNummer;
+    row.insertCell(2).innerText = a.beschreibung;
+    row.insertCell(3).innerText = a.ek.toFixed(2);
+    row.insertCell(4).innerText = a.vk.toFixed(2);
+    const cell = row.insertCell(5);
+    const btnEdit = document.createElement('button');
+    btnEdit.className = 'btn btn-edit'; btnEdit.innerText = 'Bearbeiten';
+    btnEdit.onclick = () => editArtikelInKaufvertrag(j);
+    cell.appendChild(btnEdit);
+  });
+  document.getElementById('kaufvertragEditModal').style.display = 'flex';
+}
+
+function editArtikelInKaufvertrag(artikelIndex) {
+  const k = archiv[aktuellBearbeitenArchivIndex];
+  const a = k.artikel[artikelIndex];
+  aktuellBearbeitenArtikelIndex = artikelIndex;
+  document.getElementById('editArtikelInKaufvertragName').value = a.name;
+  document.getElementById('editArtikelInKaufvertragNummer').value = a.artikelNummer;
+  document.getElementById('editArtikelInKaufvertragBeschreibung').value = a.beschreibung;
+  document.getElementById('editArtikelInKaufvertragEK').value = a.ek;
+  document.getElementById('editArtikelInKaufvertragVK').value = a.vk;
+  document.getElementById('artikelInKaufvertragEditModal').style.display = 'flex';
+}
+
+function artikelInKaufvertragAenderungSpeichern() {
+  if (aktuellBearbeitenArchivIndex === null || aktuellBearbeitenArtikelIndex === null) return;
+  const k = archiv[aktuellBearbeitenArchivIndex];
+  const a = k.artikel[aktuellBearbeitenArtikelIndex];
+  a.name = document.getElementById('editArtikelInKaufvertragName').value.trim();
+  a.artikelNummer = document.getElementById('editArtikelInKaufvertragNummer').value.trim();
+  a.beschreibung = document.getElementById('editArtikelInKaufvertragBeschreibung').value.trim();
+  a.ek = parseFloat(document.getElementById('editArtikelInKaufvertragEK').value);
+  a.vk = parseFloat(document.getElementById('editArtikelInKaufvertragVK').value);
+  aktuellBearbeitenArtikelIndex = null;
+  document.getElementById('artikelInKaufvertragEditModal').style.display = 'none';
+  editKaufvertrag(aktuellBearbeitenArchivIndex);
+  updateSteuerTabelle();
+  updateUmsatzTabelle();
+}
+
+function kaufvertragAenderungSpeichern() {
+  if (aktuellBearbeitenArchivIndex === null) return;
+  const ausgeliefert = document.getElementById('editAusgeliefert').value || null;
+  const abgerechnet = document.getElementById('editAbgerechnet').value || null;
+  const herstellerBezahlt = document.getElementById('editHerstellerBezahlt').value || null;
+  const auftragsNummer = document.getElementById('editAuftragsNummer').value.trim();
+
+  const k = archiv[aktuellBearbeitenArchivIndex];
+  k.ausgeliefert = ausgeliefert;
+  k.abgerechnet = abgerechnet;
+  k.herstellerBezahlt = herstellerBezahlt;
+  k.auftragsNummer = auftragsNummer;
+
+  if (abgerechnet) {
+    k.restbetrag = 0;
+  } else {
+    k.restbetrag = k.originalRestbetrag;
+  }
+
+  aktuellBearbeitenArchivIndex = null;
+  document.getElementById('kaufvertragEditModal').style.display = 'none';
+  updateArchivTabelle();
+  updateSteuerTabelle();
+  updateUmsatzTabelle();
+  updateForderungenVerbindlichkeiten();
+}
+
+function isArchivComplete(k) {
+  return k.ausgeliefert && k.abgerechnet && k.herstellerBezahlt;
+}
+
+function updateArchivTabelle() {
+  const filter = document.getElementById('archivSuche').value.toLowerCase().trim();
+  const table = document.getElementById('archivTabelle');
+  table.innerHTML = '<tr><th>Kaufvertragsnummer</th><th>Kunde</th><th>Datum</th><th>Gesamtbetrag</th><th>Anzahlung</th><th>Restbetrag</th><th>Auftragsbestätigungsnummer</th><th>Ausgeliefert</th><th>Abgerechnet</th><th>Herstellerverbindlichkeiten bezahlt</th><th>Aktionen</th></tr>';
+  archiv.forEach((k, i) => {
+    const text = (k.kaufvertragsnummer + ' ' + k.kunde.vorname + ' ' + k.kunde.nachname).toLowerCase();
+    if (filter === '' || text.includes(filter)) {
+      const row = table.insertRow();
+      if (isArchivComplete(k)) row.classList.add('complete');
+      row.insertCell(0).innerText = k.kaufvertragsnummer;
+      row.insertCell(1).innerText = k.kunde.vorname + ' ' + k.kunde.nachname;
+      row.insertCell(2).innerText = k.datum;
+      row.insertCell(3).innerText = k.gesamtbetrag.toFixed(2);
+      row.insertCell(4).innerText = k.anzahlung.toFixed(2);
+      row.insertCell(5).innerText = k.restbetrag.toFixed(2);
+      row.insertCell(6).innerText = k.auftragsNummer || '-';
+      row.insertCell(7).innerText = k.ausgeliefert || '-';
+      row.insertCell(8).innerText = k.abgerechnet || '-';
+      row.insertCell(9).innerText = k.herstellerBezahlt || '-';
+      const cell = row.insertCell(10);
+      const btnEdit = document.createElement('button');
+      btnEdit.className = 'btn btn-edit'; btnEdit.innerText = 'Bearbeiten';
+      btnEdit.onclick = () => editKaufvertrag(i);
+      const btnDel = document.createElement('button');
+      btnDel.className = 'btn btn-delete'; btnDel.innerText = 'Löschen';
+      btnDel.onclick = () => {
+        archiv.splice(i, 1);
+        updateArchivTabelle();
+        updateSteuerTabelle();
+        updateUmsatzTabelle();
+        updateForderungenVerbindlichkeiten();
+      };
+      const btnPDF = document.createElement('button');
+      btnPDF.className = 'btn btn-pdf'; btnPDF.innerText = 'Kaufvertrag PDF';
+      btnPDF.onclick = () => downloadKaufvertragPDF(k);
+      cell.appendChild(btnEdit);
+      cell.appendChild(btnDel);
+      cell.appendChild(btnPDF);
+      if (k.artikel.some(a => a.kommissionHerkunft)) {
+        const btnHerstellerPDF = document.createElement('button');
+        btnHerstellerPDF.className = 'btn btn-pdf'; btnHerstellerPDF.innerText = 'Herstellerbestellung PDF';
+        btnHerstellerPDF.onclick = () => downloadHerstellerbestellungPDF(k);
+        cell.appendChild(btnHerstellerPDF);
+      }
+    }
+  });
+}
+
+function downloadKaufvertragPDF(k) {
+  const { jsPDF } = window.jspdf;
+  const doc = new jsPDF();
+
+  // Footer SOFORT definieren – direkt nach Erstellung des Dokuments!
+  doc.didDrawPage = function (data) {
+    const pageHeight = doc.internal.pageSize.getHeight();
+    doc.setFontSize(9);
+    doc.setTextColor(100);
+    const footerY = pageHeight - 15;
+    doc.text("Folge uns: Instagram | TikTok | Facebook  |  #CasaDivani", 20, footerY);
+    doc.text("www.casa-divani.de | info@casa-divani.de | Tel: 01234-567890", 20, footerY + 5);
+  };
+
+  doc.setFont("helvetica");
+
+  const logoUrl = "https://i.imgur.com/o8Lowx7.png";
+  const img = new Image();
+  img.crossOrigin = "Anonymous";
+
+  img.onload = function () {
+    // Jetzt alles auf Seite 1 zeichnen
+    doc.addImage(img, 'PNG', 170, 8, 30, 30);
+
+    doc.setFontSize(16);
+    doc.setFont(undefined, "bold");
+    doc.text("Casa Divani", 20, 20);
+
+    doc.setFontSize(10);
+    doc.setFont(undefined, "normal");
+    doc.text("Musterstrasse 1, 11111 Musterstadt", 20, 28);
+    doc.text("Telefon: 01234-567890 | E-Mail: info@casadivani.de", 20, 34);
+
+    doc.setFontSize(12);
+    doc.setFont(undefined, "bold");
+    doc.text(`Kaufvertragsnummer: ${k.kaufvertragsnummer}`, 150, 20, { align: "right" });
+
+    doc.setFontSize(11);
+    doc.setFont(undefined, "normal");
+    doc.text(`Kunde: ${k.kunde.vorname} ${k.kunde.nachname}`, 20, 44);
+    doc.text(`Adresse: ${k.kunde.strasse}, ${k.kunde.plz}`, 20, 50);
+    if (k.kunde.email) doc.text(`E-Mail: ${k.kunde.email}`, 20, 56);
+    if (k.kunde.ruf) doc.text(`Telefon: ${k.kunde.ruf}`, 20, 62);
+
+    const artikelRows = k.artikel.map(a => [
+      a.name,
+      a.artikelNummer,
+      a.beschreibung,
+      '1',
+      a.vk.toFixed(2),
+      mwstAusBrutto(a.vk, a.steuer).toFixed(2)
+    ]);
+
+    doc.autoTable({
+      head: [['Artikel', 'Nummer', 'Beschreibung', 'Menge', 'VK inkl. MwSt €', 'MwSt €']],
+      body: artikelRows,
+      startY: 70,
+      styles: { fontSize: 10, cellPadding: 3 },
+      headStyles: { fillColor: [100, 100, 100], textColor: 255, fontStyle: 'bold' },
+      alternateRowStyles: { fillColor: [240, 240, 240] },
+      margin: { left: 20, right: 20 }
+    });
+
+    const yPos = doc.lastAutoTable.finalY + 10;
+    doc.setFontSize(11);
+    doc.setFont(undefined, "bold");
+    doc.text("Zahlungsübersicht", 20, yPos);
+
+    doc.autoTable({
+      startY: yPos + 5,
+      theme: 'grid',
+      styles: { fontSize: 10, cellPadding: 3 },
+      headStyles: { fillColor: [100, 100, 100], textColor: 255, fontStyle: 'bold' },
+      head: [['Bezeichnung', 'Betrag €']],
+      body: [
+        ['Gesamtbetrag', k.gesamtbetrag.toFixed(2)],
+        ['Anzahlung', k.anzahlung.toFixed(2)],
+        ['Restbetrag', k.restbetrag.toFixed(2)]
+      ],
+      margin: { left: 20, right: 20 }
+    });
+
+    // Seite 2: AGB
+    doc.addPage();
+    doc.addImage(img, 'PNG', 170, 8, 30, 30);
+    doc.setFontSize(16);
+    doc.setFont(undefined, "bold");
+    doc.text("Casa Divani", 20, 20);
+    doc.setFontSize(14);
+    doc.text("Allgemeine Geschäftsbedingungen (AGB)", 20, 40);
+    doc.setFontSize(10);
+    doc.setFont(undefined, "normal");
+
+    const agbText = [
+      "1. Geltungsbereich",
+      "Diese Allgemeinen Geschäftsbedingungen gelten für alle Verträge über den Kauf von Waren in unserem Geschäft bzw. über unsere Website.",
+      "",
+      "2. Vertragsschluss",
+      "Der Kaufvertrag kommt durch Übergabe der Ware und Zahlung des Kaufpreises bzw. durch Unterzeichnung des Kaufvertrags zustande.",
+      "",
+      "3. Preise und Zahlung",
+      "Die angegebenen Preise sind Endpreise inkl. gesetzlicher Mehrwertsteuer. Zahlung erfolgt bar, per EC-/Kreditkarte oder per Überweisung. Bei Überweisung ist der Betrag innerhalb von 7 Tagen fällig.",
+      "",
+      "4. Eigentumsvorbehalt",
+      "Die Ware bleibt bis zur vollständigen Bezahlung unser Eigentum.",
+      "",
+      "5. Lieferung und Montage",
+      "Liefertermine sind unverbindlich, es sei denn, sie wurden ausdrücklich schriftlich als verbindlich vereinbart. Montageleistungen sind gesondert zu vergüten, sofern nicht anders vereinbart.",
+      "",
+      "6. Gewährleistung",
+      "Es gelten die gesetzlichen Gewährleistungsregelungen. Offensichtliche Mängel sind unverzüglich, spätestens innerhalb von 14 Tagen nach Erhalt der Ware, zu rügen.",
+      "",
+      "7. Widerrufsrecht",
+      "Bei Fernabsatzverträgen (z. B. Online-Bestellung) besteht ein gesetzliches Widerrufsrecht von 14 Tagen. Bei Maßanfertigungen oder individuell gefertigten Möbeln ist das Widerrufsrecht ausgeschlossen (§ 312g Abs. 2 Nr. 1 BGB).",
+      "",
+      "8. Datenschutz",
+      "Ihre personenbezogenen Daten werden ausschließlich zur Abwicklung des Vertragsverhältnisses verwendet und gemäß DSGVO geschützt.",
+      "",
+      "9. Schlussbestimmungen",
+      "Erfüllungsort und Gerichtsstand ist Musterstadt. Es gilt deutsches Recht. Sollten einzelne Bestimmungen unwirksam sein, bleibt die Wirksamkeit der übrigen Bestimmungen unberührt.",
+      "",
+      "Stand: Dezember 2025"
+    ];
+
+    doc.text(agbText, 20, 60, { lineHeightFactor: 1.5, maxWidth: 170 });
+
+    doc.save(`Kaufvertrag_${k.kaufvertragsnummer}.pdf`);
+  };
+
+  img.onerror = function () {
+    // Fallback: PDF ohne Logo erstellen, aber Footer ist trotzdem da!
+    alert("Logo konnte nicht geladen werden – PDF wird ohne Logo erstellt.");
+    doc.save(`Kaufvertrag_${k.kaufvertragsnummer}.pdf`);
+  };
+
+  img.src = logoUrl;
+}
+
+function downloadHerstellerbestellungPDF(k) {
+  const { jsPDF } = window.jspdf;
+  const doc = new jsPDF();
+
+  const logoUrl = "https://i.imgur.com/o8Lowx7.png";
+  const img = new Image();
+  img.crossOrigin = "Anonymous";
+
+  img.onload = function () {
+    doc.setFont("helvetica");
+
+    doc.didDrawPage = function (data) {
+      const pageHeight = doc.internal.pageSize.getHeight();
+      doc.setFontSize(9);
+      doc.setTextColor(100);
+      const footerY = pageHeight - 15;
+      doc.text("Folge uns: Instagram | TikTok | Facebook  |  #CasaDivani", 20, footerY);
+      doc.text("www.casa-divani.de | info@casa-divani.de | Tel: 01234-567890", 20, footerY + 5);
+    };
+
+    doc.addImage(img, 'PNG', 170, 8, 30, 30);
+
+    doc.setFontSize(16);
+    doc.setFont(undefined, "bold");
+    doc.text("Casa Divani", 20, 20);
+
+    doc.setFontSize(10);
+    doc.setFont(undefined, "normal");
+    doc.text("Musterstrasse 1, 11111 Musterstadt", 20, 28);
+    doc.text("Telefon: 01234-567890 | E-Mail: info@casadivani.de", 20, 34);
+
+    doc.setFontSize(12);
+    doc.setFont(undefined, "bold");
+    doc.text(`Kaufvertragsnummer: ${k.kaufvertragsnummer}`, 150, 20, { align: "right" });
+
+    doc.setFontSize(11);
+    doc.setFont(undefined, "normal");
+    doc.text(`Kunde: ${k.kunde.vorname} ${k.kunde.nachname}`, 20, 44);
+    doc.text(`Datum: ${k.datum}`, 20, 50);
+
+    const artikelRows = k.artikel.map(a => [
+      a.name,
+      a.artikelNummer,
+      a.beschreibung,
+      '1'
+    ]);
+
+    doc.autoTable({
+      head: [['Artikelname', 'Artikelnummer', 'Beschreibung', 'Menge']],
+      body: artikelRows,
+      startY: 60,
+      styles: { fontSize: 10, cellPadding: 3 },
+      headStyles: { fillColor: [100, 100, 100], textColor: 255, fontStyle: 'bold' },
+      alternateRowStyles: { fillColor: [240, 240, 240] },
+      margin: { left: 20, right: 20 }
+    });
+
+    doc.save(`Herstellerbestellung_${k.kaufvertragsnummer}.pdf`);
+  };
+
+  img.onerror = function () {
+    alert("Logo konnte nicht geladen werden.");
+  };
+
+  img.src = logoUrl;
+}
+
+// Steuerbericht & Umsatz
+function updateSteuerTabelle() {
+  const table = document.getElementById('steuerTabelle');
+  table.innerHTML = `<tr><th>Kaufvertragsnummer</th><th>Artikel</th><th>Menge</th><th>VK brutto</th><th>EK brutto</th><th>Umsatzsteuer €</th><th>Vorsteuer €</th><th>Steuerlast €</th></tr>`;
+
+  let gesamtSteuerlast = 0;
+
+  archiv.forEach(k => {
+    k.artikel.forEach(a => {
+      const ust = mwstAusBrutto(a.vk, a.steuer);
+      const vst = mwstAusBrutto(a.ek, a.steuer);
+      const steuerlast = ust - vst;
+
+      const row = table.insertRow();
+      row.insertCell(0).innerText = k.kaufvertragsnummer;
+      row.insertCell(1).innerText = a.name;
+      row.insertCell(2).innerText = '1';
+      row.insertCell(3).innerText = a.vk.toFixed(2);
+      row.insertCell(4).innerText = a.ek.toFixed(2);
+      row.insertCell(5).innerText = ust.toFixed(2);
+      row.insertCell(6).innerText = vst.toFixed(2);
+      row.insertCell(7).innerText = steuerlast.toFixed(2);
+
+      gesamtSteuerlast += steuerlast;
+    });
+  });
+
+  document.getElementById('steuerSumme').innerText = `Gesamte Steuerlast: ${gesamtSteuerlast.toFixed(2)} €`;
+  updateUmsatzTabelle();
+}
+
+function updateUmsatzTabelle() {
+  const table = document.getElementById('umsatzTabelle');
+  table.innerHTML = `<tr><th>Kaufvertragsnummer</th><th>Artikel</th><th>VK brutto €</th><th>EK brutto €</th><th>Reingewinn €</th></tr>`;
+
+  let sumVK = 0, sumEK = 0, sumGewinn = 0;
+
+  archiv.forEach(k => {
+    k.artikel.forEach(a => {
+      const ust = mwstAusBrutto(a.vk, a.steuer);
+      const vst = mwstAusBrutto(a.ek, a.steuer);
+      const steuerlast = ust - vst;
+      const gewinn = (a.vk - a.ek) - steuerlast;
+
+      sumVK += a.vk;
+      sumEK += a.ek;
+      sumGewinn += gewinn;
+
+      const row = table.insertRow();
+      row.insertCell(0).innerText = k.kaufvertragsnummer;
+      row.insertCell(1).innerText = a.name;
+      row.insertCell(2).innerText = a.vk.toFixed(2);
+      row.insertCell(3).innerText = a.ek.toFixed(2);
+      row.insertCell(4).innerText = gewinn.toFixed(2);
+    });
+  });
+
+  document.getElementById('umsatzSumme').innerText =
+    `Gesamt VK brutto: ${sumVK.toFixed(2)} € | Gesamt EK brutto: ${sumEK.toFixed(2)} € | Reingewinn: ${sumGewinn.toFixed(2)} €`;
+}
+
+// Forderungen/Verbindlichkeiten
+function updateForderungenVerbindlichkeiten() {
+  // Offene Forderungen
+  const forderungenTable = document.getElementById('forderungenTabelle');
+  forderungenTable.innerHTML = '<tr><th>Kaufvertragsnummer</th><th>Kunde</th><th>Restbetrag €</th><th>Bezahlt</th><th>Aktionen</th></tr>';
+  let sumForderungen = 0;
+
+  archiv.forEach((k, i) => {
+    if (k.restbetrag > 0) {
+      const row = forderungenTable.insertRow();
+      row.insertCell(0).innerText = k.kaufvertragsnummer;
+      row.insertCell(1).innerText = k.kunde.vorname + ' ' + k.kunde.nachname;
+      row.insertCell(2).innerText = k.restbetrag.toFixed(2);
+      row.insertCell(3).innerText = k.abgerechnet || '-';
+      const cell = row.insertCell(4);
+      const btnEdit = document.createElement('button');
+      btnEdit.className = 'btn btn-edit'; btnEdit.innerText = 'Bearbeiten';
+      btnEdit.onclick = () => editKaufvertrag(i);
+      cell.appendChild(btnEdit);
+      sumForderungen += k.restbetrag;
+    }
+  });
+
+  document.getElementById('forderungenSumme').innerText = `Gesamte offene Forderungen: ${sumForderungen.toFixed(2)} €`;
+
+  // Offene Verbindlichkeiten
+  const verbindlichkeitenTable = document.getElementById('verbindlichkeitenTabelle');
+  verbindlichkeitenTable.innerHTML = '<tr><th>Kaufvertragsnummer</th><th>Artikelnummer</th><th>Name</th><th>AuftragsNr.</th><th>EK brutto €</th><th>Bezahlt</th><th>Aktionen</th></tr>';
+  let sumVerbindlichkeiten = 0;
+
+  archiv.forEach((k, i) => {
+    if (!k.herstellerBezahlt) {
+      k.artikel.forEach(a => {
+        const row = verbindlichkeitenTable.insertRow();
+        row.insertCell(0).innerText = k.kaufvertragsnummer;
+        row.insertCell(1).innerText = a.artikelNummer;
+        row.insertCell(2).innerText = a.name;
+        row.insertCell(3).innerText = a.auftragsNummer;
+        const ekTotal = a.ek;
+        row.insertCell(4).innerText = ekTotal.toFixed(2);
+        row.insertCell(5).innerText = k.herstellerBezahlt || '-';
+        const cell = row.insertCell(6);
+        const btnEdit = document.createElement('button');
+        btnEdit.className = 'btn btn-edit'; btnEdit.innerText = 'Bearbeiten';
+        btnEdit.onclick = () => editKaufvertrag(i);
+        cell.appendChild(btnEdit);
+        sumVerbindlichkeiten += ekTotal;
+      });
+    }
+  });
+
+  document.getElementById('verbindlichkeitenSumme').innerText = `Gesamte offene Verbindlichkeiten: ${sumVerbindlichkeiten.toFixed(2)} €`;
+}
+
+</script>
+
+
 </body>
 </html>
