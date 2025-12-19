@@ -710,8 +710,8 @@ async function saveKaufvertrag() {
     restbetrag: originalRestbetrag,
     ausgeliefert: null,
     abgerechnet: null,
-    hersteller_bezahlt: null,
-    auftragsnummer: ''
+    hersteller_bezahlt: null
+    // auftragsnummer wird hier NICHT gesetzt – wird später im Archiv bearbeitet
   };
 
   const { data: archivData, error: archivError } = await supabaseClient.from('archiv').insert([newArchiv]).select();
@@ -735,11 +735,14 @@ async function saveKaufvertrag() {
 
   const { error: artikelError } = await supabaseClient.from('archiv_artikel').insert(artikelForInsert);
   if (artikelError) alert('Fehler beim Speichern der Artikel: ' + artikelError.message);
-  else await loadArchiv(); // Sofort neu laden
+  else await loadArchiv(); // Sofort neu laden → Verkauf erscheint im Archiv
 
   aktuelleKaufvertragArtikel = [];
   updateAktuelleKaufvertragTabelle();
   closeKundeModal();
+  ['kundeVorname', 'kundeNachname', 'kundeStrasse', 'kundePLZ', 'kundeRuf', 'kundeEmail', 'kundeAnzahlung', 'ueberweisungsDatum'].forEach(id => document.getElementById(id).value = '');
+  document.getElementById('kundeZahlungsart').value = 'Bar';
+  toggleUeberweisungDatum();
   alert("Kaufvertrag abgeschlossen!");
 }
 
@@ -1252,6 +1255,7 @@ window.onload = () => {
 
 </body>
 </html>
+
 
 
 
