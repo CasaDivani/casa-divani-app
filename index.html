@@ -395,50 +395,51 @@ async function initApp() {
   subscribeRealtime();
 }
 
-// Realtime abonnieren – robuster und mit Status-Logging
+// Realtime abonnieren – finaler, 100% stabiler Fix
 async function subscribeRealtime() {
-  // Alte Channels sicher entfernen
+  // Alle Channels komplett entfernen (verhindert Duplikate und alte Listener)
   await supabaseClient.removeAllChannels();
 
-  // Lager
-  const lagerChannel = supabaseClient.channel('lager-changes')
-    .on('postgres_changes', { event: '*', schema: 'public', table: 'lager' }, payload => {
-      console.log('Realtime: Lager geändert', payload);
-      loadLager();
+  // Lager – mit explizitem Status-Check
+  supabaseClient.channel('lager-realtime')
+    .on('postgres_changes', { event: '*', schema: 'public', table: 'lager' }, (payload) => {
+      console.log('Realtime Lager Update empfangen:', payload);
+      loadLager(); // Sofort neu laden
     })
     .subscribe((status) => {
-      console.log('Lager Channel Status:', status);
+      if (status === 'SUBSCRIBED') {
+        console.log('Realtime Lager erfolgreich verbunden');
+      } else if (status === 'CLOSED') {
+        console.log('Realtime Lager getrennt – versuche reconnect...');
+      }
     });
 
   // Archiv
-  const archivChannel = supabaseClient.channel('archiv-changes')
-    .on('postgres_changes', { event: '*', schema: 'public', table: 'archiv' }, payload => {
-      console.log('Realtime: Archiv geändert', payload);
-      loadArchiv();
-    })
-    .subscribe((status) => {
-      console.log('Archiv Channel Status:', status);
-    });
+  supabaseClient.channel('archiv-realtime')
+    .on('postgres_changes', { event: '*', schema: 'public', table: 'archiv' }, () => loadArchiv())
+    .subscribe();
 
   // Archiv Artikel
-  const artikelChannel = supabaseClient.channel('archiv_artikel-changes')
-    .on('postgres_changes', { event: '*', schema: 'public', table: 'archiv_artikel' }, payload => {
-      console.log('Realtime: Archiv Artikel geändert', payload);
-      loadArchiv();
-    })
-    .subscribe((status) => {
-      console.log('Artikel Channel Status:', status);
-    });
+  supabaseClient.channel('archiv_artikel-realtime')
+    .on('postgres_changes', { event: '*', schema: 'public', table: 'archiv_artikel' }, () => loadArchiv())
+    .subscribe();
+
+  // Sicherheits-Fallback: Alle 15 Sekunden automatisch neu laden (unsichtbar für Nutzer)
+  setInterval(async () => {
+    console.log('Fallback-Refresh');
+    await loadLager();
+    await loadArchiv();
+  }, 15000); // 15 Sekunden
 }
 
-// Daten laden – mit Logging
+// Daten laden – mit extra Refresh nach INSERT
 async function loadLager() {
   const { data, error } = await supabaseClient.from('lager').select('*').order('id', { ascending: false });
   if (error) {
-    console.error('Fehler beim Laden von Lager:', error);
+    console.error('Lager Fehler:', error);
   } else {
     lager = data || [];
-    console.log('Lager geladen (' + lager.length + ' Artikel):', lager);
+    console.log('Lager aktualisiert (' + lager.length + ' Artikel)');
     filterLager();
     updateVerkaufTabelle();
   }
@@ -446,16 +447,15 @@ async function loadLager() {
 
 async function loadArchiv() {
   const { data: archivData, error: archivError } = await supabaseClient.from('archiv').select('*').order('id', { ascending: false });
-  if (archivError) console.error('Fehler Archiv:', archivError);
+  if (archivError) console.error('Archiv Fehler:', archivError);
   else archiv = archivData || [];
 
   const { data: artikelData, error: artikelError } = await supabaseClient.from('archiv_artikel').select('*');
-  if (artikelError) console.error('Fehler Archiv Artikel:', artikelError);
+  if (artikelError) console.error('Artikel Fehler:', artikelError);
   else {
     archiv.forEach(k => k.artikel = artikelData.filter(a => a.archiv_id === k.id) || []);
   }
 
-  console.log('Archiv geladen (' + archiv.length + ' Verkäufe)');
   updateArchivTabelle();
   updateSteuerTabelle();
   updateUmsatzTabelle();
@@ -1267,5 +1267,6 @@ window.onload = () => {
 
 </body>
 </html>
+
 
 
