@@ -395,51 +395,35 @@ async function initApp() {
   subscribeRealtime();
 }
 
-// Realtime abonnieren – finaler, 100% stabiler Fix
+// Realtime abonnieren – stabil mit Fallback
 async function subscribeRealtime() {
-  // Alle Channels komplett entfernen (verhindert Duplikate und alte Listener)
   await supabaseClient.removeAllChannels();
 
-  // Lager – mit explizitem Status-Check
   supabaseClient.channel('lager-realtime')
-    .on('postgres_changes', { event: '*', schema: 'public', table: 'lager' }, (payload) => {
-      console.log('Realtime Lager Update empfangen:', payload);
-      loadLager(); // Sofort neu laden
-    })
-    .subscribe((status) => {
-      if (status === 'SUBSCRIBED') {
-        console.log('Realtime Lager erfolgreich verbunden');
-      } else if (status === 'CLOSED') {
-        console.log('Realtime Lager getrennt – versuche reconnect...');
-      }
-    });
+    .on('postgres_changes', { event: '*', schema: 'public', table: 'lager' }, () => loadLager())
+    .subscribe();
 
-  // Archiv
   supabaseClient.channel('archiv-realtime')
     .on('postgres_changes', { event: '*', schema: 'public', table: 'archiv' }, () => loadArchiv())
     .subscribe();
 
-  // Archiv Artikel
   supabaseClient.channel('archiv_artikel-realtime')
     .on('postgres_changes', { event: '*', schema: 'public', table: 'archiv_artikel' }, () => loadArchiv())
     .subscribe();
 
-  // Sicherheits-Fallback: Alle 15 Sekunden automatisch neu laden (unsichtbar für Nutzer)
+  // Fallback: Alle 15 Sekunden neu laden
   setInterval(async () => {
-    console.log('Fallback-Refresh');
     await loadLager();
     await loadArchiv();
-  }, 15000); // 15 Sekunden
+  }, 15000);
 }
 
-// Daten laden – mit extra Refresh nach INSERT
+// Daten laden
 async function loadLager() {
   const { data, error } = await supabaseClient.from('lager').select('*').order('id', { ascending: false });
-  if (error) {
-    console.error('Lager Fehler:', error);
-  } else {
+  if (error) console.error(error);
+  else {
     lager = data || [];
-    console.log('Lager aktualisiert (' + lager.length + ' Artikel)');
     filterLager();
     updateVerkaufTabelle();
   }
@@ -447,11 +431,11 @@ async function loadLager() {
 
 async function loadArchiv() {
   const { data: archivData, error: archivError } = await supabaseClient.from('archiv').select('*').order('id', { ascending: false });
-  if (archivError) console.error('Archiv Fehler:', archivError);
+  if (archivError) console.error(archivError);
   else archiv = archivData || [];
 
   const { data: artikelData, error: artikelError } = await supabaseClient.from('archiv_artikel').select('*');
-  if (artikelError) console.error('Artikel Fehler:', artikelError);
+  if (artikelError) console.error(artikelError);
   else {
     archiv.forEach(k => k.artikel = artikelData.filter(a => a.archiv_id === k.id) || []);
   }
@@ -460,14 +444,6 @@ async function loadArchiv() {
   updateSteuerTabelle();
   updateUmsatzTabelle();
   updateForderungenVerbindlichkeiten();
-}
-
-// App initialisieren
-async function initApp() {
-  console.log('App gestartet – lade Daten...');
-  await loadLager();
-  await loadArchiv();
-  subscribeRealtime();
 }
 
 // Hilfsfunktion MwSt
@@ -513,7 +489,7 @@ async function artikelHinzufuegenFromModal() {
   if (error) {
     alert('Fehler beim Speichern: ' + error.message);
   } else {
-    await loadLager(); // ← Sofort neu laden → Artikel erscheint garantiert
+    await loadLager(); // Sofort neu laden – Artikel erscheint garantiert
   }
   closeArtikelAddModal();
 }
@@ -557,6 +533,7 @@ async function artikelAenderungSpeichern() {
 
   const { error } = await supabaseClient.from('lager').update(updatedArtikel).eq('id', lager[aktuellBearbeitenIndex].id);
   if (error) alert('Fehler: ' + error.message);
+  else await loadLager(); // Sofort neu laden
   aktuellBearbeitenIndex = null;
   document.getElementById('artikelEditModal').style.display = 'none';
 }
@@ -602,7 +579,8 @@ function filterLager() {
       btnDel.className = 'btn btn-delete'; btnDel.innerText = 'Löschen';
       btnDel.onclick = async () => {
         const { error } = await supabaseClient.from('lager').delete().eq('id', a.id);
-        if (error) alert(error.message);
+        if (error) alert('Fehler: ' + error.message);
+        else await loadLager();
       };
       cell.appendChild(btnEdit);
       cell.appendChild(btnDel);
@@ -757,6 +735,7 @@ async function saveKaufvertrag() {
 
   const { error: artikelError } = await supabaseClient.from('archiv_artikel').insert(artikelForInsert);
   if (artikelError) alert('Fehler beim Speichern der Artikel: ' + artikelError.message);
+  else await loadArchiv(); // Sofort neu laden
 
   aktuelleKaufvertragArtikel = [];
   updateAktuelleKaufvertragTabelle();
@@ -816,9 +795,9 @@ async function artikelInKaufvertragAenderungSpeichern() {
 
   const { error } = await supabaseClient.from('archiv_artikel').update(updated).eq('id', a.id);
   if (error) alert('Fehler: ' + error.message);
+  else await loadArchiv();
   aktuellBearbeitenArtikelIndex = null;
   document.getElementById('artikelInKaufvertragEditModal').style.display = 'none';
-  editKaufvertrag(aktuellBearbeitenArchivIndex);
 }
 
 async function kaufvertragAenderungSpeichern() {
@@ -833,6 +812,7 @@ async function kaufvertragAenderungSpeichern() {
 
   const { error } = await supabaseClient.from('archiv').update(updated).eq('id', k.id);
   if (error) alert('Fehler: ' + error.message);
+  else await loadArchiv();
   aktuellBearbeitenArchivIndex = null;
   document.getElementById('kaufvertragEditModal').style.display = 'none';
 }
@@ -865,7 +845,8 @@ function updateArchivTabelle() {
       btnDel.className = 'btn btn-delete'; btnDel.innerText = 'Löschen';
       btnDel.onclick = async () => {
         const { error } = await supabaseClient.from('archiv').delete().eq('id', k.id);
-        if (error) alert(error.message);
+        if (error) alert('Fehler: ' + error.message);
+        else await loadArchiv();
       };
       const btnPDF = document.createElement('button');
       btnPDF.className = 'btn btn-pdf'; btnPDF.innerText = 'Kaufvertrag PDF';
@@ -1203,7 +1184,7 @@ function downloadHerstellerbestellungPDF(k) {
 // Steuerbericht PDF
 function downloadSteuerPDF() {
   const { jsPDF } = window.jspdf;
-  const doc = new jsPDF('l', 'mm', 'a4'); // Querformat für mehr Spalten
+  const doc = new jsPDF('l', 'mm', 'a4');
 
   doc.setFontSize(14);
   doc.text("Casa Divani - Steuerbericht", 20, 20);
@@ -1271,6 +1252,7 @@ window.onload = () => {
 
 </body>
 </html>
+
 
 
 
