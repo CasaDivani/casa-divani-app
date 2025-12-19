@@ -395,27 +395,50 @@ async function initApp() {
   subscribeRealtime();
 }
 
-// Realtime abonnieren
-function subscribeRealtime() {
-  supabaseClient.channel('lager')
-    .on('postgres_changes', { event: '*', schema: 'public', table: 'lager' }, () => loadLager())
-    .subscribe();
+// Realtime abonnieren – robuster und mit Status-Logging
+async function subscribeRealtime() {
+  // Alte Channels sicher entfernen
+  await supabaseClient.removeAllChannels();
 
-  supabaseClient.channel('archiv')
-    .on('postgres_changes', { event: '*', schema: 'public', table: 'archiv' }, () => loadArchiv())
-    .subscribe();
+  // Lager
+  const lagerChannel = supabaseClient.channel('lager-changes')
+    .on('postgres_changes', { event: '*', schema: 'public', table: 'lager' }, payload => {
+      console.log('Realtime: Lager geändert', payload);
+      loadLager();
+    })
+    .subscribe((status) => {
+      console.log('Lager Channel Status:', status);
+    });
 
-  supabaseClient.channel('archiv_artikel')
-    .on('postgres_changes', { event: '*', schema: 'public', table: 'archiv_artikel' }, () => loadArchiv())
-    .subscribe();
+  // Archiv
+  const archivChannel = supabaseClient.channel('archiv-changes')
+    .on('postgres_changes', { event: '*', schema: 'public', table: 'archiv' }, payload => {
+      console.log('Realtime: Archiv geändert', payload);
+      loadArchiv();
+    })
+    .subscribe((status) => {
+      console.log('Archiv Channel Status:', status);
+    });
+
+  // Archiv Artikel
+  const artikelChannel = supabaseClient.channel('archiv_artikel-changes')
+    .on('postgres_changes', { event: '*', schema: 'public', table: 'archiv_artikel' }, payload => {
+      console.log('Realtime: Archiv Artikel geändert', payload);
+      loadArchiv();
+    })
+    .subscribe((status) => {
+      console.log('Artikel Channel Status:', status);
+    });
 }
 
-// Daten laden
+// Daten laden – mit Logging
 async function loadLager() {
-  const { data, error } = await supabaseClient.from('lager').select('*').order('id');
-  if (error) console.error(error);
-  else {
+  const { data, error } = await supabaseClient.from('lager').select('*').order('id', { ascending: false });
+  if (error) {
+    console.error('Fehler beim Laden von Lager:', error);
+  } else {
     lager = data || [];
+    console.log('Lager geladen (' + lager.length + ' Artikel):', lager);
     filterLager();
     updateVerkaufTabelle();
   }
@@ -423,19 +446,28 @@ async function loadLager() {
 
 async function loadArchiv() {
   const { data: archivData, error: archivError } = await supabaseClient.from('archiv').select('*').order('id', { ascending: false });
-  if (archivError) console.error(archivError);
+  if (archivError) console.error('Fehler Archiv:', archivError);
   else archiv = archivData || [];
 
   const { data: artikelData, error: artikelError } = await supabaseClient.from('archiv_artikel').select('*');
-  if (artikelError) console.error(artikelError);
+  if (artikelError) console.error('Fehler Archiv Artikel:', artikelError);
   else {
     archiv.forEach(k => k.artikel = artikelData.filter(a => a.archiv_id === k.id) || []);
   }
 
+  console.log('Archiv geladen (' + archiv.length + ' Verkäufe)');
   updateArchivTabelle();
   updateSteuerTabelle();
   updateUmsatzTabelle();
   updateForderungenVerbindlichkeiten();
+}
+
+// App initialisieren
+async function initApp() {
+  console.log('App gestartet – lade Daten...');
+  await loadLager();
+  await loadArchiv();
+  subscribeRealtime();
 }
 
 // Hilfsfunktion MwSt
@@ -1235,3 +1267,4 @@ window.onload = () => {
 
 </body>
 </html>
+
