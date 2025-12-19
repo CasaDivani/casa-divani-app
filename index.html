@@ -510,7 +510,11 @@ async function artikelHinzufuegenFromModal() {
   };
 
   const { error } = await supabaseClient.from('lager').insert([newArtikel]);
-  if (error) alert('Fehler: ' + error.message);
+  if (error) {
+    alert('Fehler beim Speichern: ' + error.message);
+  } else {
+    await loadLager(); // ← Sofort neu laden → Artikel erscheint garantiert
+  }
   closeArtikelAddModal();
 }
 
@@ -1267,6 +1271,7 @@ window.onload = () => {
 
 </body>
 </html>
+
 
 
 
