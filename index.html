@@ -1166,8 +1166,8 @@ function downloadKaufvertragPDF(k) {
   img.onload = function () {
     const today = new Date().toLocaleDateString('de-DE');
 
-    // Header auf jeder Seite
-    doc.didDrawPage = function (data) {
+    // Header auf jeder Vertragsseite
+    function addHeader() {
       doc.addImage(img, 'PNG', 170, 8, 30, 30);
 
       doc.setFontSize(16);
@@ -1190,7 +1190,9 @@ function downloadKaufvertragPDF(k) {
       doc.text(`Adresse: ${k.kunde_strasse}, ${k.kunde_plz}`, 20, 50);
       if (k.kunde_email) doc.text(`E-Mail: ${k.kunde_email}`, 20, 56);
       if (k.kunde_ruf) doc.text(`Telefon: ${k.kunde_ruf}`, 20, 62);
-    };
+    }
+
+    addHeader(); // Header auf Seite 1
 
     // Artikel-Tabelle
     const artikelRows = k.artikel.map(a => [
@@ -1212,6 +1214,8 @@ function downloadKaufvertragPDF(k) {
       margin: { left: 20, right: 20 },
       pageBreak: 'auto',
       didDrawPage: (data) => {
+        if (data.pageNumber > 1) addHeader(); // Header auf neuen Seiten
+
         let yPos = data.cursor.y + 15;
 
         doc.setFontSize(11);
@@ -1232,7 +1236,7 @@ function downloadKaufvertragPDF(k) {
           ],
           margin: { left: 20, right: 20 },
           didDrawPage: (data2) => {
-            addContractSignatureSection(data2.cursor.y + 35);
+            addContractSignatureSection(data2.cursor.y + 40);
           }
         });
       }
@@ -1268,7 +1272,7 @@ function downloadKaufvertragPDF(k) {
 
     // Separate Seite für Kästchen + Unterschrift
     doc.addPage();
-    doc.didDrawPage(); // Header auf dieser Seite
+    addHeader();
 
     let y = 80;
     doc.setFontSize(10);
@@ -1355,6 +1359,7 @@ function downloadKaufvertragPDF(k) {
 
   img.src = logoUrl;
 }
+  
 function downloadHerstellerbestellungPDF(k) {
   const { jsPDF } = window.jspdf;
   const doc = new jsPDF();
@@ -1554,6 +1559,7 @@ window.onload = () => {
 
 </body>
 </html>
+
 
 
 
