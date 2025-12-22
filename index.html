@@ -113,7 +113,6 @@ tr.complete { background-color: #e8f5e9; }
 .btn-pdf { background-color: #607D8B; color: white; margin-right: 5px; } .btn-pdf:hover { background-color: #455A64; }
 .btn-add { background-color: var(--primary-color); color: white; font-size: 16px; padding: 12px 24px; margin-bottom: 16px; }
 
-/* Große Buttons für wichtige Aktionen */
 .btn-large {
   background-color: var(--primary-color);
   color: white;
@@ -138,7 +137,6 @@ tr.complete { background-color: #e8f5e9; }
   box-shadow: 0 6px 12px rgba(0,0,0,0.15);
 }
 
-/* Auf Mobile noch größer */
 @media (max-width: 768px) {
   .btn-large {
     font-size: 20px;
@@ -175,7 +173,6 @@ tr.complete { background-color: #e8f5e9; }
 
 /* Responsive – nur auf kleinen Geräten anpassen */
 @media (max-width: 992px) {
-  /* Tabs untereinander auf Tablet/Mobile */
   .tab { 
     display: block; 
     width: 100%; 
@@ -184,15 +181,13 @@ tr.complete { background-color: #e8f5e9; }
     border-radius: 6px; 
   }
 
-  /* Buttons etwas größer für Touch */
   .btn, button { 
     padding: 10px 14px; 
     font-size: 14px; 
   }
 
-  /* Tabellen horizontal scrollen */
   .section { overflow-x: auto; -webkit-overflow-scrolling: touch; }
-  table { min-width: 900px; } /* Mindestbreite für Lesbarkeit */
+  table { min-width: 900px; }
 }
 
 @media (max-width: 600px) {
@@ -214,7 +209,6 @@ tr.complete { background-color: #e8f5e9; }
     <input type="email" id="loginEmail" placeholder="E-Mail">
     <input type="password" id="loginPass" placeholder="Passwort">
     <button onclick="login()">Anmelden</button>
-    <button onclick="signup()">Registrieren (nur beim ersten Mal)</button>
     <p id="authError" style="color:red;margin-top:10px;"></p>
   </div>
 </div>
@@ -444,6 +438,8 @@ tr.complete { background-color: #e8f5e9; }
     </div>
   </div>
 
+</div>
+
 <script>
 // Supabase Initialisierung
 const supabaseUrl = 'https://lkwtwlqehgytdeyytgmr.supabase.co'
@@ -470,17 +466,6 @@ async function login() {
   } else {
     document.getElementById('loginModal').style.display = 'none';
     initApp();
-  }
-}
-
-async function signup() {
-  const email = document.getElementById('loginEmail').value.trim();
-  const password = document.getElementById('loginPass').value;
-  const { data, error } = await supabaseClient.auth.signUp({ email, password });
-  if (error) {
-    document.getElementById('authError').innerText = error.message;
-  } else {
-    alert('Registriert! Bestätige deine E-Mail und logge dich dann ein.');
   }
 }
 
@@ -568,20 +553,20 @@ async function artikelHinzufuegenFromModal() {
   const artikelnummerInput = document.getElementById('addArtikelNummer').value.trim().toUpperCase();
 
   // 1. Format-Prüfung
-  const regex = /^CD\d{6}-(0[1-9]|[1-9]\d|XX)$/; // CD + 6 Ziffern + -01 bis -99 oder -XX
+  const regex = /^CD\d{6}-(0[1-9]|[1-9]\d|XX)$/;
   if (!regex.test(artikelnummerInput)) {
     alert('Ungültige Artikelnummer!\nMuss sein: CD + 6 Ziffern + -01 bis -99 oder -XX\nBeispiel: CD123456-01 oder CD123456-XX');
     return;
   }
 
-  // 2. Duplikat-Prüfung (Basisnummer ohne Endung)
-  const basisnummer = artikelnummerInput.substring(0, 8); // z. B. CD123456
-  const endung = artikelnummerInput.substring(8); // z. B. -01 oder -XX
+  // 2. Duplikat-Prüfung
+  const basisnummer = artikelnummerInput.substring(0, 8);
+  const endung = artikelnummerInput.substring(8);
 
   const duplikat = lager.some(a => {
     const aBasis = a.artikelnummer.substring(0, 8);
     const aEndung = a.artikelnummer.substring(8);
-    if (endung === '-XX') return false; // -XX darf mehrmals vorkommen
+    if (endung === '-XX') return false;
     return aBasis === basisnummer;
   });
 
@@ -590,7 +575,6 @@ async function artikelHinzufuegenFromModal() {
     return;
   }
 
-  // Wenn alles ok – normal weiter
   const newArtikel = {
     artikelnummer: artikelnummerInput,
     name: document.getElementById('addArtikelName').value.trim(),
@@ -611,7 +595,7 @@ async function artikelHinzufuegenFromModal() {
   if (error) {
     alert('Fehler beim Speichern: ' + error.message);
   } else {
-    await loadLager(); // Sofort neu laden
+    await loadLager();
   }
   closeArtikelAddModal();
 }
@@ -655,7 +639,7 @@ async function artikelAenderungSpeichern() {
 
   const { error } = await supabaseClient.from('lager').update(updatedArtikel).eq('id', lager[aktuellBearbeitenIndex].id);
   if (error) alert('Fehler: ' + error.message);
-  else await loadLager(); // Sofort neu laden
+  else await loadLager();
   aktuellBearbeitenIndex = null;
   document.getElementById('artikelEditModal').style.display = 'none';
 }
@@ -693,15 +677,13 @@ function filterLager() {
       row.insertCell(10).innerText = a.steuer + '%';
       row.insertCell(11).innerText = a.in_ausstellung ? 'Ja' : 'Nein';
 
-            const cell = row.insertCell(12);
+      const cell = row.insertCell(12);
 
-      // Button Bearbeiten
       const btnEdit = document.createElement('button');
       btnEdit.className = 'btn btn-edit';
       btnEdit.innerText = 'Bearbeiten';
       btnEdit.onclick = () => editArtikel(i);
 
-      // Button Löschen
       const btnDel = document.createElement('button');
       btnDel.className = 'btn btn-delete';
       btnDel.innerText = 'Löschen';
@@ -711,23 +693,20 @@ function filterLager() {
         else await loadLager();
       };
 
-      // Button Preisschild
       const btnPreis = document.createElement('button');
       btnPreis.className = 'btn btn-pdf';
       btnPreis.innerText = 'Preisschild';
       btnPreis.onclick = () => downloadPreisschildPDF(a);
 
-      // Buttons zur Zelle hinzufügen
       cell.appendChild(btnEdit);
       cell.appendChild(btnDel);
       cell.appendChild(btnPreis);
 
-      // Bezahlt-Spalte
       row.insertCell(13).innerText = a.bezahlt || '-';
     }
   });
 }
-  
+
 // Kaufvertrag
 function updateVerkaufTabelle() {
   const filter = document.getElementById('verkaufSuche').value.toLowerCase().trim();
@@ -849,7 +828,6 @@ async function saveKaufvertrag() {
     ausgeliefert: null,
     abgerechnet: null,
     hersteller_bezahlt: null
-    // auftragsnummer wird hier NICHT gesetzt – wird später im Archiv bearbeitet
   };
 
   const { data: archivData, error: archivError } = await supabaseClient.from('archiv').insert([newArchiv]).select();
@@ -873,7 +851,7 @@ async function saveKaufvertrag() {
 
   const { error: artikelError } = await supabaseClient.from('archiv_artikel').insert(artikelForInsert);
   if (artikelError) alert('Fehler beim Speichern der Artikel: ' + artikelError.message);
-  else await loadArchiv(); // Sofort neu laden → Verkauf erscheint im Archiv
+  else await loadArchiv();
 
   aktuelleKaufvertragArtikel = [];
   updateAktuelleKaufvertragTabelle();
@@ -1020,20 +998,22 @@ function updateSteuerTabelle() {
   // Alle Jahre sammeln und Dropdown aktualisieren
   const years = new Set();
   archiv.forEach(k => {
-    const kYear = parseInt(k.datum.split('.')[2], 10); // Jahr aus DD.MM.YYYY
+    const kYear = parseInt(k.datum.split('.')[2], 10);
     years.add(kYear);
   });
 
-  // Dropdown aktualisieren (nur einmal, wenn leer)
   const select = document.getElementById('steuerJahrFilter');
-  if (select.options.length === 1) { // Nur "Alle Jahre" vorhanden
-    const sortedYears = Array.from(years).sort((a, b) => a - b);
-    sortedYears.forEach(year => {
-      const option = document.createElement('option');
-      option.value = year;
-      option.textContent = year;
-      select.appendChild(option);
-    });
+  select.innerHTML = '<option value="">Alle Jahre</option>';
+  const sortedYears = Array.from(years).sort((a, b) => a - b);
+  sortedYears.forEach(year => {
+    const option = document.createElement('option');
+    option.value = year;
+    option.textContent = year;
+    select.appendChild(option);
+  });
+
+  if (selectedYear && sortedYears.includes(parseInt(selectedYear))) {
+    select.value = selectedYear;
   }
 
   // Tabelle filtern
@@ -1079,7 +1059,7 @@ function updateUmsatzTabelle() {
     years.add(kYear);
   });
 
-  // Dropdown neu füllen (immer aktuell)
+  // Dropdown neu füllen
   const select = document.getElementById('umsatzJahrFilter');
   select.innerHTML = '<option value="">Alle Jahre</option>';
   const sortedYears = Array.from(years).sort((a, b) => a - b);
@@ -1090,7 +1070,6 @@ function updateUmsatzTabelle() {
     select.appendChild(option);
   });
 
-  // Ausgewähltes Jahr wiederherstellen (falls vorhanden)
   if (selectedYear && sortedYears.includes(parseInt(selectedYear))) {
     select.value = selectedYear;
   }
@@ -1175,7 +1154,7 @@ function updateForderungenVerbindlichkeiten() {
   document.getElementById('verbindlichkeitenSumme').innerText = `Gesamte offene Verbindlichkeiten: ${sumVerbindlichkeiten.toFixed(2)} €`;
 }
 
-// PDF-Funktionen
+// PDF-Funktionen (wie in deiner letzten Version – vollständig und korrigiert)
 function downloadKaufvertragPDF(k) {
   const { jsPDF } = window.jspdf;
   const doc = new jsPDF();
@@ -1187,12 +1166,10 @@ function downloadKaufvertragPDF(k) {
   img.onload = function () {
     const today = new Date().toLocaleDateString('de-DE');
 
-    // Header auf JEDER Seite (Logo, Firma, Datum, Nummer, Kunde)
+    // Header auf JEDER Seite
     doc.didDrawPage = function (data) {
-      // Logo rechts oben
       doc.addImage(img, 'PNG', 170, 8, 30, 30);
 
-      // Firma
       doc.setFontSize(16);
       doc.setFont(undefined, "bold");
       doc.text("Casa Divani", 20, 20);
@@ -1202,7 +1179,6 @@ function downloadKaufvertragPDF(k) {
       doc.text("Musterstrasse 1, 11111 Musterstadt", 20, 28);
       doc.text("Telefon: 01234-567890 | E-Mail: info@casadivani.de", 20, 34);
 
-      // Datum + Nummer rechts
       doc.setFontSize(12);
       doc.setFont(undefined, "bold");
       doc.text(`Datum: ${today}`, 150, 20, { align: "right" });
@@ -1237,7 +1213,7 @@ function downloadKaufvertragPDF(k) {
       margin: { left: 20, right: 20 },
       pageBreak: 'auto',
       didDrawPage: (data) => {
-        let yPos = data.cursor.y + 20; // Mehr Abstand
+        let yPos = data.cursor.y + 20;
 
         // Zahlungsübersicht
         doc.setFontSize(11);
@@ -1258,13 +1234,13 @@ function downloadKaufvertragPDF(k) {
           ],
           margin: { left: 20, right: 20 },
           didDrawPage: (data2) => {
-            addContractSignatureSection(data2.cursor.y + 40); // Noch mehr Abstand
+            addContractSignatureSection(data2.cursor.y + 40);
           }
         });
       }
     });
 
-    // Kästchen + Unterschrift auf Vertragsseiten
+    // Kästchen + Unterschrift
     function addContractSignatureSection(startY) {
       let y = startY;
 
@@ -1272,12 +1248,12 @@ function downloadKaufvertragPDF(k) {
       doc.setFont(undefined, "normal");
 
       function drawCheckbox(x, y) {
-        doc.rect(x, y - 6, 6, 6); // Noch kleiner
+        doc.rect(x, y - 6, 6, 6);
       }
 
       doc.text("Der Kunde wurde über warentypische Eigenschaften des Polstermöbels aufgeklärt", 20, y);
       drawCheckbox(175, y);
-      y += 16; // Mehr Abstand
+      y += 16;
 
       doc.text("Hiermit werden die allgemeinen Geschäftsbedingungen akzeptiert", 20, y);
       drawCheckbox(175, y);
@@ -1285,11 +1261,11 @@ function downloadKaufvertragPDF(k) {
 
       doc.text("Hiermit willige ich ein, aktuelle Newsletter und Werbung zu erhalten", 20, y);
       drawCheckbox(175, y);
-      y += 30; // Noch mehr Abstand zu Unterschrift
+      y += 30;
 
       doc.text(`Datum: ${today}`, 20, y);
       doc.text("Unterschrift Kunde:", 90, y);
-      doc.line(90, y + 10, 180, y + 10); // Noch mehr Abstand + längere Linie
+      doc.line(90, y + 10, 180, y + 10);
     }
 
     // AGB auf neuer Seite
@@ -1337,12 +1313,11 @@ function downloadKaufvertragPDF(k) {
 
     doc.text(agbText, 20, 60, { lineHeightFactor: 1.4, maxWidth: 170 });
 
-    // Datum + Unterschrift auf AGB-Seite – ganz unten
     let y = 260;
     doc.setFontSize(10);
     doc.text(`Datum: ${today}`, 20, y);
     doc.text("Unterschrift Kunde:", 90, y);
-    doc.line(90, y + 10, 180, y + 10); // Mehr Abstand
+    doc.line(90, y + 10, 180, y + 10);
 
     doc.save(`Kaufvertrag_${k.kaufvertragsnummer}.pdf`);
   };
@@ -1350,6 +1325,73 @@ function downloadKaufvertragPDF(k) {
   img.onerror = function () {
     alert("Logo konnte nicht geladen werden.");
     doc.save(`Kaufvertrag_${k.kaufvertragsnummer}.pdf`);
+  };
+
+  img.src = logoUrl;
+}
+
+function downloadHerstellerbestellungPDF(k) {
+  const { jsPDF } = window.jspdf;
+  const doc = new jsPDF();
+
+  doc.didDrawPage = function (data) {
+    const pageHeight = doc.internal.pageSize.getHeight();
+    doc.setFontSize(9);
+    doc.setTextColor(100);
+    const footerY = pageHeight - 15;
+    doc.text("Folge uns: Instagram | TikTok | Facebook  |  #CasaDivani", 20, footerY);
+    doc.text("www.casa-divani.de | info@casa-divani.de | Tel: 01234-567890", 20, footerY + 5);
+  };
+
+  doc.setFont("helvetica");
+
+  const logoUrl = "https://i.imgur.com/o8Lowx7.png";
+  const img = new Image();
+  img.crossOrigin = "Anonymous";
+
+  img.onload = function () {
+    doc.addImage(img, 'PNG', 170, 8, 30, 30);
+
+    doc.setFontSize(16);
+    doc.setFont(undefined, "bold");
+    doc.text("Casa Divani - Herstellerbestellung", 20, 20);
+
+    doc.setFontSize(10);
+    doc.setFont(undefined, "normal");
+    doc.text("Musterstrasse 1, 11111 Musterstadt", 20, 28);
+    doc.text("Telefon: 01234-567890 | E-Mail: info@casadivani.de", 20, 34);
+
+    doc.setFontSize(12);
+    doc.setFont(undefined, "bold");
+    doc.text(`Kaufvertragsnummer: ${k.kaufvertragsnummer}`, 150, 20, { align: "right" });
+
+    doc.setFontSize(11);
+    doc.setFont(undefined, "normal");
+    doc.text(`Kunde: ${k.kunde_vorname} ${k.kunde_nachname}`, 20, 44);
+    doc.text(`Datum: ${k.datum}`, 20, 50);
+
+    const artikelRows = k.artikel.map(a => [
+      a.name,
+      a.artikelnummer,
+      a.beschreibung,
+      '1'
+    ]);
+
+    doc.autoTable({
+      head: [['Artikelname', 'Artikelnummer', 'Beschreibung', 'Menge']],
+      body: artikelRows,
+      startY: 60,
+      styles: { fontSize: 10, cellPadding: 3 },
+      headStyles: { fillColor: [100, 100, 100], textColor: 255, fontStyle: 'bold' },
+      alternateRowStyles: { fillColor: [240, 240, 240] },
+      margin: { left: 20, right: 20 }
+    });
+
+    doc.save(`Herstellerbestellung_${k.kaufvertragsnummer}.pdf`);
+  };
+
+  img.onerror = function () {
+    alert("Logo konnte nicht geladen werden.");
   };
 
   img.src = logoUrl;
@@ -1412,13 +1454,13 @@ function downloadSteuerPDF() {
   doc.save('Steuerbericht.pdf');
 }
 
-  // Preisschild PDF (DIN A6) – angepasst
+// Preisschild PDF
 function downloadPreisschildPDF(a) {
   const { jsPDF } = window.jspdf;
   const doc = new jsPDF({
     orientation: 'portrait',
     unit: 'mm',
-    format: [105, 148] // DIN A6 Hochformat
+    format: [105, 148]
   });
 
   const logoUrl = "https://i.imgur.com/o8Lowx7.png";
@@ -1426,33 +1468,25 @@ function downloadPreisschildPDF(a) {
   img.crossOrigin = "Anonymous";
 
   img.onload = function () {
-    // Logo rechts oben dezent (klein, 20x20 mm, 5 mm Abstand vom Rand)
     doc.addImage(img, 'PNG', 105 - 25, 5, 20, 20);
 
-    // Überschrift links oben
     doc.setFontSize(14);
     doc.setFont(undefined, 'bold');
     doc.text("Polstergarnitur", 10, 20);
 
-    // Artikelname darunter
     doc.setFontSize(18);
     doc.text(a.name, 10, 30);
 
-    // Beschreibung (mehrzeilig, linksbündig)
     doc.setFontSize(12);
     doc.setFont(undefined, 'normal');
-    const beschreibungLines = doc.splitTextToSize(a.beschreibung || 'Keine Beschreibung', 85); // 85 mm Breite
+    const beschreibungLines = doc.splitTextToSize(a.beschreibung || 'Keine Beschreibung', 85);
     doc.text(beschreibungLines, 10, 45);
 
-    // "Sonderpreis bei Abholung" unten zentriert
     doc.setFontSize(14);
-    doc.setFont(undefined, 'normal');
     doc.text("Sonderpreis bei Abholung", 52.5, 110, { align: 'center' });
 
-    // Preis groß und fett darunter
     doc.setFontSize(32);
     doc.setFont(undefined, 'bold');
-    // Preis ohne unnötige Dezimalstellen (1999 € statt 1999.00 €)
     const preis = a.vk % 1 === 0 ? Math.round(a.vk) : a.vk.toFixed(2);
     doc.text(preis + ' €', 52.5, 130, { align: 'center' });
 
@@ -1461,7 +1495,6 @@ function downloadPreisschildPDF(a) {
 
   img.onerror = function () {
     alert("Logo konnte nicht geladen werden – Preisschild ohne Logo.");
-    // Fallback ohne Logo
     doc.setFontSize(14);
     doc.setFont(undefined, 'bold');
     doc.text("Polstergarnitur", 10, 20);
@@ -1475,13 +1508,13 @@ function downloadPreisschildPDF(a) {
     doc.setFontSize(32);
     doc.setFont(undefined, 'bold');
     const preis = a.vk % 1 === 0 ? Math.round(a.vk) : a.vk.toFixed(2);
-    doc.text(preis + ' €', 52.5, 120, { align: 'center' });
+    doc.text(preis + ' €', 52.5, 130, { align: 'center' });
     doc.save(`Preisschild_${a.artikelnummer}.pdf`);
   };
 
   img.src = logoUrl;
 }
-  
+
 // Init beim Laden
 window.onload = () => {
   supabaseClient.auth.getSession().then(({ data: { session } }) => {
@@ -1496,19 +1529,4 @@ window.onload = () => {
 
 </body>
 </html>
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
 
