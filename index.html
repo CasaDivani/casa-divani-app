@@ -1207,9 +1207,13 @@ function downloadKaufvertragPDF(k) {
     doc.text("Musterstrasse 1, 11111 Musterstadt", 20, 28);
     doc.text("Telefon: 01234-567890 | E-Mail: info@casadivani.de", 20, 34);
 
+    // Tagesaktuelles Datum rechts
+    const today = new Date().toLocaleDateString('de-DE');
     doc.setFontSize(12);
     doc.setFont(undefined, "bold");
-    doc.text(`Kaufvertragsnummer: ${k.kaufvertragsnummer}`, 150, 20, { align: "right" });
+    doc.text(`Datum: ${today}`, 150, 20, { align: "right" });
+
+    doc.text(`Kaufvertragsnummer: ${k.kaufvertragsnummer}`, 150, 28, { align: "right" });
 
     doc.setFontSize(11);
     doc.setFont(undefined, "normal");
@@ -1256,6 +1260,7 @@ function downloadKaufvertragPDF(k) {
       margin: { left: 20, right: 20 }
     });
 
+    // Neue Seite für AGB + neue Felder
     doc.addPage();
     doc.addImage(img, 'PNG', 170, 8, 30, 30);
     doc.setFontSize(16);
@@ -1298,6 +1303,29 @@ function downloadKaufvertragPDF(k) {
     ];
 
     doc.text(agbText, 20, 60, { lineHeightFactor: 1.5, maxWidth: 170 });
+
+    // Neue Felder linksbündig unten (klein, dezent)
+    doc.setFontSize(10);
+    const startY = 220;
+
+    // Kästchen zeichnen (eckig)
+    function drawCheckbox(x, y) {
+      doc.rect(x, y - 8, 8, 8); // eckiges Kästchen
+    }
+
+    doc.text("Der Kunde wurde über warentypische Eigenschaften des Polstermöbels aufgeklärt", 20, startY);
+    drawCheckbox(180, startY);
+
+    doc.text("Hiermit werden die allgemeinen Geschäftsbedingungen akzeptiert", 20, startY + 12);
+    drawCheckbox(180, startY + 12);
+
+    doc.text("Hiermit willige ich ein, aktuelle Newsletter und Werbung zu erhalten", 20, startY + 24);
+    drawCheckbox(180, startY + 24);
+
+    // Unterschrift linksbündig unten
+    doc.setFontSize(10);
+    doc.text("Unterschrift Kunde:", 20, startY + 50);
+    doc.line(20, startY + 55, 100, startY + 55); // Unterschriftslinie
 
     doc.save(`Kaufvertrag_${k.kaufvertragsnummer}.pdf`);
   };
@@ -1518,6 +1546,7 @@ window.onload = () => {
 
 </body>
 </html>
+
 
 
 
