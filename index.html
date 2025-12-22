@@ -1185,13 +1185,10 @@ function downloadKaufvertragPDF(k) {
   img.crossOrigin = "Anonymous";
 
   img.onload = function () {
-    let pageNumber = 1;
     const today = new Date().toLocaleDateString('de-DE');
 
-    // Header auf JEDER Seite (Logo, Firma, Datum, Nummer)
+    // Header auf JEDER Seite (Logo, Firma, Datum, Nummer, Kunde)
     doc.didDrawPage = function (data) {
-      pageNumber = data.pageNumber;
-
       // Logo rechts oben
       doc.addImage(img, 'PNG', 170, 8, 30, 30);
 
@@ -1211,15 +1208,13 @@ function downloadKaufvertragPDF(k) {
       doc.text(`Datum: ${today}`, 150, 20, { align: "right" });
       doc.text(`Kaufvertragsnummer: ${k.kaufvertragsnummer}`, 150, 28, { align: "right" });
 
-      // Kunde NUR auf Seite 1
-      if (pageNumber === 1) {
-        doc.setFontSize(11);
-        doc.setFont(undefined, "normal");
-        doc.text(`Kunde: ${k.kunde_vorname} ${k.kunde_nachname}`, 20, 44);
-        doc.text(`Adresse: ${k.kunde_strasse}, ${k.kunde_plz}`, 20, 50);
-        if (k.kunde_email) doc.text(`E-Mail: ${k.kunde_email}`, 20, 56);
-        if (k.kunde_ruf) doc.text(`Telefon: ${k.kunde_ruf}`, 20, 62);
-      }
+      // Kunde (wiederholt auf jeder Seite)
+      doc.setFontSize(11);
+      doc.setFont(undefined, "normal");
+      doc.text(`Kunde: ${k.kunde_vorname} ${k.kunde_nachname}`, 20, 44);
+      doc.text(`Adresse: ${k.kunde_strasse}, ${k.kunde_plz}`, 20, 50);
+      if (k.kunde_email) doc.text(`E-Mail: ${k.kunde_email}`, 20, 56);
+      if (k.kunde_ruf) doc.text(`Telefon: ${k.kunde_ruf}`, 20, 62);
     };
 
     // Artikel-Tabelle
@@ -1235,7 +1230,7 @@ function downloadKaufvertragPDF(k) {
     doc.autoTable({
       head: [['Artikel', 'Nummer', 'Beschreibung', 'Menge', 'VK inkl. MwSt €', 'MwSt €']],
       body: artikelRows,
-      startY: pageNumber === 1 ? 70 : 50,
+      startY: 70, // Immer ab 70 (Header nimmt Platz bis 62)
       styles: { fontSize: 10, cellPadding: 3 },
       headStyles: { fillColor: [100, 100, 100], textColor: 255, fontStyle: 'bold' },
       alternateRowStyles: { fillColor: [240, 240, 240] },
@@ -1263,7 +1258,7 @@ function downloadKaufvertragPDF(k) {
           ],
           margin: { left: 20, right: 20 },
           didDrawPage: (data2) => {
-            addContractSignatureSection(data2.cursor.y + 30); // Mehr Abstand
+            addContractSignatureSection(data2.cursor.y + 35); // Mehr Abstand
           }
         });
       }
@@ -1277,7 +1272,7 @@ function downloadKaufvertragPDF(k) {
       doc.setFont(undefined, "normal");
 
       function drawCheckbox(x, y) {
-        doc.rect(x, y - 7, 7, 7); // Kleineres Kästchen
+        doc.rect(x, y - 7, 7, 7); // Kleiner
       }
 
       doc.text("Der Kunde wurde über warentypische Eigenschaften des Polstermöbels aufgeklärt", 20, y);
@@ -1290,12 +1285,12 @@ function downloadKaufvertragPDF(k) {
 
       doc.text("Hiermit willige ich ein, aktuelle Newsletter und Werbung zu erhalten", 20, y);
       drawCheckbox(175, y);
-      y += 25;
+      y += 30; // Mehr Abstand zu Unterschrift
 
-      // Datum + Unterschrift nebeneinander, mit viel Platz
+      // Datum + Unterschrift nebeneinander
       doc.text(`Datum: ${today}`, 20, y);
       doc.text("Unterschrift Kunde:", 90, y);
-      doc.line(90, y + 8, 180, y + 8); // Längere Linie, mehr Abstand
+      doc.line(90, y + 8, 180, y + 8); // Lange Linie, mehr Platz
     }
 
     // AGB auf neuer Seite
@@ -1307,9 +1302,7 @@ function downloadKaufvertragPDF(k) {
     doc.text("Casa Divani", 20, 20);
     doc.setFontSize(14);
     doc.text("Allgemeine Geschäftsbedingungen (AGB)", 20, 40);
-
-    // AGB-Text etwas kleiner für mehr Platz
-    doc.setFontSize(9);
+    doc.setFontSize(9.5); // Etwas kleiner für mehr Platz
     doc.setFont(undefined, "normal");
 
     const agbText = [
@@ -1335,33 +1328,7 @@ function downloadKaufvertragPDF(k) {
       "Bei Fernabsatzverträgen (z. B. Online-Bestellung) besteht ein gesetzliches Widerrufsrecht von 14 Tagen. Bei Maßanfertigungen oder individuell gefertigten Möbeln ist das Widerrufsrecht ausgeschlossen (§ 312g Abs. 2 Nr. 1 BGB).",
       "",
       "8. Datenschutz",
-      "Ihre personenbezogenen Daten werden ausschließlich zur Abwicklung des Vertragsverhältnisses verwendet und gemäß DSGVO geschützt.",
-      "",
-      "9. Schlussbestimmungen",
-      "Erfüllungsort und Gerichtsstand ist Musterstadt. Es gilt deutsches Recht. Sollten einzelne Bestimmungen unwirksam sein, bleibt die Wirksamkeit der übrigen Bestimmungen unberührt.",
-      "",
-      "Stand: Dezember 2025"
-    ];
-
-    doc.text(agbText, 20, 60, { lineHeightFactor: 1.4, maxWidth: 170 });
-
-    // Datum + Unterschrift auf AGB-Seite – ganz unten
-    let y = 260; // Genug Abstand zum Text
-    doc.setFontSize(10);
-    doc.text(`Datum: ${today}`, 20, y);
-    doc.text("Unterschrift Kunde:", 90, y);
-    doc.line(90, y + 8, 180, y + 8); // Lange Linie, viel Platz
-
-    doc.save(`Kaufvertrag_${k.kaufvertragsnummer}.pdf`);
-  };
-
-  img.onerror = function () {
-    alert("Logo konnte nicht geladen werden.");
-    doc.save(`Kaufvertrag_${k.kaufvertragsnummer}.pdf`);
-  };
-
-  img.src = logoUrl;
-}
+      "Ihre
 
 function downloadHerstellerbestellungPDF(k) {
   const { jsPDF } = window.jspdf;
@@ -1571,6 +1538,7 @@ window.onload = () => {
 
 </body>
 </html>
+
 
 
 
