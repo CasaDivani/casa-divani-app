@@ -1171,7 +1171,7 @@ function downloadKaufvertragPDF(k) {
   img.onload = function () {
     const today = new Date().toLocaleDateString('de-DE');
 
-    // Header auf jeder Vertragsseite
+    // Header-Funktion (außerhalb, damit sie überall verfügbar ist)
     function addHeader() {
       doc.addImage(img, 'PNG', 170, 8, 30, 30);
 
@@ -1197,9 +1197,38 @@ function downloadKaufvertragPDF(k) {
       if (k.kunde_ruf) doc.text(`Telefon: ${k.kunde_ruf}`, 20, 62);
     }
 
-    addHeader(); // Header auf Seite 1
+    // Checkbox-Funktion (einmal definiert)
+    function drawCheckbox(x, y) {
+      doc.rect(x, y - 6, 6, 6);
+    }
 
-    // Artikel-Tabelle
+    // Kästchen + Unterschrift (einmal definiert)
+    function addContractSignatureSection(startY) {
+      let y = startY;
+
+      doc.setFontSize(10);
+      doc.setFont(undefined, "normal");
+
+      doc.text("Der Kunde wurde über warentypische Eigenschaften des Polstermöbels aufgeklärt", 20, y);
+      drawCheckbox(175, y);
+      y += 16;
+
+      doc.text("Hiermit werden die allgemeinen Geschäftsbedingungen akzeptiert", 20, y);
+      drawCheckbox(175, y);
+      y += 16;
+
+      doc.text("Hiermit willige ich ein, aktuelle Newsletter und Werbung zu erhalten", 20, y);
+      drawCheckbox(175, y);
+      y += 30;
+
+      doc.text(`Datum: ${today}`, 20, y);
+      doc.text("Unterschrift Kunde:", 90, y);
+      doc.line(90, y + 10, 180, y + 10);
+    }
+
+    // Seite 1: Header + Artikel + Zahlung
+    addHeader();
+
     const artikelRows = k.artikel.map(a => [
       a.name,
       a.artikelnummer,
@@ -1219,7 +1248,9 @@ function downloadKaufvertragPDF(k) {
       margin: { left: 20, right: 20 },
       pageBreak: 'auto',
       didDrawPage: (data) => {
-        if (data.pageNumber > 1) addHeader(); // Header auf neuen Seiten
+        if (data.pageNumber > 1) {
+          addHeader(); // Header auf neuen Seiten
+        }
 
         let yPos = data.cursor.y + 15;
 
@@ -1239,69 +1270,16 @@ function downloadKaufvertragPDF(k) {
             ['Anzahlung', k.anzahlung.toFixed(2)],
             ['Restbetrag', k.restbetrag.toFixed(2)]
           ],
-          margin: { left: 20, right: 20 },
-          didDrawPage: (data2) => {
-            addContractSignatureSection(data2.cursor.y + 40);
-          }
+          margin: { left: 20, right: 20 }
         });
       }
     });
 
-    // Kästchen + Unterschrift auf Vertragsseiten
-    function addContractSignatureSection(startY) {
-      let y = startY;
-
-      doc.setFontSize(10);
-      doc.setFont(undefined, "normal");
-
-      function drawCheckbox(x, y) {
-        doc.rect(x, y - 6, 6, 6);
-      }
-
-      doc.text("Der Kunde wurde über warentypische Eigenschaften des Polstermöbels aufgeklärt", 20, y);
-      drawCheckbox(175, y);
-      y += 16;
-
-      doc.text("Hiermit werden die allgemeinen Geschäftsbedingungen akzeptiert", 20, y);
-      drawCheckbox(175, y);
-      y += 16;
-
-      doc.text("Hiermit willige ich ein, aktuelle Newsletter und Werbung zu erhalten", 20, y);
-      drawCheckbox(175, y);
-      y += 30;
-
-      doc.text(`Datum: ${today}`, 20, y);
-      doc.text("Unterschrift Kunde:", 90, y);
-      doc.line(90, y + 10, 180, y + 10);
-    }
-
-    // Separate Seite für Kästchen + Unterschrift
+    // Separate Seite für Kästchen + Unterschrift (mit Header)
     doc.addPage();
     addHeader();
 
-    let y = 80;
-    doc.setFontSize(10);
-    doc.setFont(undefined, "normal");
-
-    function drawCheckbox(x, y) {
-      doc.rect(x, y - 6, 6, 6);
-    }
-
-    doc.text("Der Kunde wurde über warentypische Eigenschaften des Polstermöbels aufgeklärt", 20, y);
-    drawCheckbox(175, y);
-    y += 16;
-
-    doc.text("Hiermit werden die allgemeinen Geschäftsbedingungen akzeptiert", 20, y);
-    drawCheckbox(175, y);
-    y += 16;
-
-    doc.text("Hiermit willige ich ein, aktuelle Newsletter und Werbung zu erhalten", 20, y);
-    drawCheckbox(175, y);
-    y += 30;
-
-    doc.text(`Datum: ${today}`, 20, y);
-    doc.text("Unterschrift Kunde:", 90, y);
-    doc.line(90, y + 10, 180, y + 10);
+    addContractSignatureSection(80);
 
     // AGB auf neuer Seite
     doc.addPage();
@@ -1564,6 +1542,7 @@ window.onload = () => {
 
 </body>
 </html>
+
 
 
 
