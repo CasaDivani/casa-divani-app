@@ -1164,152 +1164,180 @@ function downloadKaufvertragPDF(k) {
   const { jsPDF } = window.jspdf;
   const doc = new jsPDF();
 
-  const today = new Date().toLocaleDateString('de-DE');
+  const logoUrl = "https://i.imgur.com/o8Lowx7.png";
+  const img = new Image();
+  img.crossOrigin = "Anonymous";
 
-  // Header
-  doc.addImage("https://i.imgur.com/o8Lowx7.png", 'PNG', 170, 8, 30, 30, undefined, 'NONE'); // Logo ohne onload
+  img.onload = function () {
+    const today = new Date().toLocaleDateString('de-DE');
 
-  doc.setFontSize(16);
-  doc.setFont(undefined, "bold");
-  doc.text("Casa Divani", 20, 20);
+    // Header auf jeder Vertragsseite
+    function addHeader() {
+      doc.addImage(img, 'PNG', 170, 8, 30, 30);
 
-  doc.setFontSize(10);
-  doc.setFont(undefined, "normal");
-  doc.text("Musterstrasse 1", 20, 28);
-  doc.text("11111 Musterstadt", 20, 28);
-  doc.text("Telefon: 01234-567890", 20, 34);
-   doc.text("E-Mail: info@casadivani.de", 20, 34);
+      doc.setFontSize(16);
+      doc.setFont(undefined, "bold");
+      doc.text("Casa Divani", 20, 20);
 
-  doc.setFontSize(12);
-  doc.setFont(undefined, "bold");
-  doc.text(`Datum: ${today}`, 150, 20, { align: "right" });
-  doc.text(`Kaufvertragsnummer: ${k.kaufvertragsnummer}`, 150, 28, { align: "right" });
+      doc.setFontSize(10);
+      doc.setFont(undefined, "normal");
+      doc.text("Musterstrasse 1", 20, 28);
+      doc.text("11111 Musterstadt", 20, 34);
+      doc.text("Telefon: 01234-567890", 20, 40);
+      doc.text("E-Mail: info@casadivani.de", 20, 46);
 
-  doc.setFontSize(11);
-  doc.setFont(undefined, "normal");
-  doc.text(`Kunde: ${k.kunde_vorname} ${k.kunde_nachname}`, 20, 44);
-  doc.text(`Adresse: ${k.kunde_strasse}, ${k.kunde_plz}`, 20, 50);
-  if (k.kunde_email) doc.text(`E-Mail: ${k.kunde_email}`, 20, 56);
-  if (k.kunde_ruf) doc.text(`Telefon: ${k.kunde_ruf}`, 20, 62);
+      // Datum und Nummer rechts, in separaten Zeilen
+      doc.setFontSize(12);
+      doc.setFont(undefined, "bold");
+      doc.text(`Datum: ${today}`, 150, 28, { align: "right" });
+      doc.text(`Kaufvertragsnummer: ${k.kaufvertragsnummer}`, 150, 36, { align: "right" });
 
-  // Artikel-Tabelle
-  const artikelRows = k.artikel.map(a => [
-    a.name,
-    a.artikelnummer,
-    a.beschreibung,
-    '1',
-    a.vk.toFixed(2),
-    mwstAusBrutto(a.vk, a.steuer).toFixed(2)
-  ]);
+      // Kunde
+      doc.setFontSize(11);
+      doc.setFont(undefined, "normal");
+      doc.text(`Kunde: ${k.kunde_vorname} ${k.kunde_nachname}`, 20, 56);
+      doc.text(`Adresse: ${k.kunde_strasse}`, 20, 62);
+      doc.text(`${k.kunde_plz}`, 20, 68);
+      if (k.kunde_email) doc.text(`E-Mail: ${k.kunde_email}`, 20, 74);
+      if (k.kunde_ruf) doc.text(`Telefon: ${k.kunde_ruf}`, 20, 80);
+    }
 
-  doc.autoTable({
-    head: [['Artikel', 'Nummer', 'Beschreibung', 'Menge', 'VK inkl. MwSt €', 'MwSt €']],
-    body: artikelRows,
-    startY: 70,
-    styles: { fontSize: 10, cellPadding: 3 },
-    headStyles: { fillColor: [100, 100, 100], textColor: 255, fontStyle: 'bold' },
-    alternateRowStyles: { fillColor: [240, 240, 240] },
-    margin: { left: 20, right: 20 }
-  });
+    addHeader(); // Header auf Seite 1
 
-  // Zahlungsübersicht
-  let yPos = doc.lastAutoTable.finalY + 15;
-  doc.setFontSize(11);
-  doc.setFont(undefined, "bold");
-  doc.text("Zahlungsübersicht", 20, yPos);
-  yPos += 10;
+    // Artikel-Tabelle
+    const artikelRows = k.artikel.map(a => [
+      a.name,
+      a.artikelnummer,
+      a.beschreibung,
+      '1',
+      a.vk.toFixed(2),
+      mwstAusBrutto(a.vk, a.steuer).toFixed(2)
+    ]);
 
-  doc.autoTable({
-    startY: yPos,
-    theme: 'grid',
-    styles: { fontSize: 10, cellPadding: 3 },
-    headStyles: { fillColor: [100, 100, 100], textColor: 255, fontStyle: 'bold' },
-    head: [['Bezeichnung', 'Betrag €']],
-    body: [
-      ['Gesamtbetrag', k.gesamtbetrag.toFixed(2)],
-      ['Anzahlung', k.anzahlung.toFixed(2)],
-      ['Restbetrag', k.restbetrag.toFixed(2)]
-    ],
-    margin: { left: 20, right: 20 }
-  });
+    doc.autoTable({
+      head: [['Artikel', 'Nummer', 'Beschreibung', 'Menge', 'VK inkl. MwSt €', 'MwSt €']],
+      body: artikelRows,
+      startY: 90, // Mehr Platz für Header
+      styles: { fontSize: 10, cellPadding: 3 },
+      headStyles: { fillColor: [100, 100, 100], textColor: 255, fontStyle: 'bold' },
+      alternateRowStyles: { fillColor: [240, 240, 240] },
+      margin: { left: 20, right: 20 },
+      pageBreak: 'auto',
+      didDrawPage: (data) => {
+        if (data.pageNumber > 1) addHeader(); // Header auf neuen Seiten
+      }
+    });
 
-  // Kästchen + Unterschrift auf separater Seite
-  doc.addPage();
+    // Zahlungsübersicht
+    let yPos = doc.lastAutoTable.finalY + 20;
 
-  doc.addImage("https://i.imgur.com/o8Lowx7.png", 'PNG', 170, 8, 30, 30, undefined, 'NONE');
+    doc.setFontSize(11);
+    doc.setFont(undefined, "bold");
+    doc.text("Zahlungsübersicht", 20, yPos);
+    yPos += 10;
 
-  yPos = 80;
-  doc.setFontSize(10);
-  doc.setFont(undefined, "normal");
+    doc.autoTable({
+      startY: yPos,
+      theme: 'grid',
+      styles: { fontSize: 10, cellPadding: 3 },
+      headStyles: { fillColor: [100, 100, 100], textColor: 255, fontStyle: 'bold' },
+      head: [['Bezeichnung', 'Betrag €']],
+      body: [
+        ['Gesamtbetrag', k.gesamtbetrag.toFixed(2)],
+        ['Anzahlung', k.anzahlung.toFixed(2)],
+        ['Restbetrag', k.restbetrag.toFixed(2)]
+      ],
+      margin: { left: 20, right: 20 }
+    });
 
-  doc.text("Der Kunde wurde über warentypische Eigenschaften des Polstermöbels aufgeklärt", 20, yPos);
-  doc.rect(175, yPos - 6, 6, 6);
-  yPos += 16;
+    // Separate Seite für Kästchen + Unterschrift
+    doc.addPage();
+    addHeader();
 
-  doc.text("Hiermit werden die allgemeinen Geschäftsbedingungen akzeptiert", 20, yPos);
-  doc.rect(175, yPos - 6, 6, 6);
-  yPos += 16;
+    yPos = 90;
+    doc.setFontSize(10);
+    doc.setFont(undefined, "normal");
 
-  doc.text("Hiermit willige ich ein, aktuelle Newsletter und Werbung zu erhalten", 20, yPos);
-  doc.rect(175, yPos - 6, 6, 6);
-  yPos += 30;
+    function drawCheckbox(x, y) {
+      doc.rect(x, y - 6, 6, 6);
+    }
 
-  doc.text(`Datum: ${today}`, 20, yPos);
-  doc.text("Unterschrift Kunde:", 90, yPos);
-  doc.line(90, yPos + 10, 180, yPos + 10);
+    doc.text("Der Kunde wurde über warentypische Eigenschaften des Polstermöbels aufgeklärt", 20, yPos);
+    drawCheckbox(175, yPos);
+    yPos += 16;
 
-  // AGB auf neuer Seite
-  doc.addPage();
+    doc.text("Hiermit werden die allgemeinen Geschäftsbedingungen akzeptiert", 20, yPos);
+    drawCheckbox(175, yPos);
+    yPos += 16;
 
-  doc.addImage("https://i.imgur.com/o8Lowx7.png", 'PNG', 170, 8, 30, 30, undefined, 'NONE');
-  doc.setFontSize(16);
-  doc.setFont(undefined, "bold");
-  doc.text("Casa Divani", 20, 20);
-  doc.setFontSize(14);
-  doc.text("Allgemeine Geschäftsbedingungen (AGB)", 20, 40);
-  doc.setFontSize(9.5);
-  doc.setFont(undefined, "normal");
+    doc.text("Hiermit willige ich ein, aktuelle Newsletter und Werbung zu erhalten", 20, yPos);
+    drawCheckbox(175, yPos);
+    yPos += 30;
 
-  const agbText = [
-    "1. Geltungsbereich",
-    "Diese Allgemeinen Geschäftsbedingungen gelten für alle Verträge über den Kauf von Waren in unserem Geschäft bzw. über unsere Website.",
-    "",
-    "2. Vertragsschluss",
-    "Der Kaufvertrag kommt durch Übergabe der Ware und Zahlung des Kaufpreises bzw. durch Unterzeichnung des Kaufvertrags zustande.",
-    "",
-    "3. Preise und Zahlung",
-    "Die angegebenen Preise sind Endpreise inkl. gesetzlicher Mehrwertsteuer. Zahlung erfolgt bar, per EC-/Kreditkarte oder per Überweisung. Bei Überweisung ist der Betrag innerhalb von 7 Tagen fällig.",
-    "",
-    "4. Eigentumsvorbehalt",
-    "Die Ware bleibt bis zur vollständigen Bezahlung unser Eigentum.",
-    "",
-    "5. Lieferung und Montage",
-    "Liefertermine sind unverbindlich, es sei denn, sie wurden ausdrücklich schriftlich als verbindlich vereinbart. Montageleistungen sind gesondert zu vergüten, sofern nicht anders vereinbart.",
-    "",
-    "6. Gewährleistung",
-    "Es gelten die gesetzlichen Gewährleistungsregelungen. Offensichtliche Mängel sind unverzüglich, spätestens innerhalb von 14 Tagen nach Erhalt der Ware, zu rügen.",
-    "",
-    "7. Widerrufsrecht",
-    "Bei Fernabsatzverträgen (z. B. Online-Bestellung) besteht ein gesetzliches Widerrufsrecht von 14 Tagen. Bei Maßanfertigungen oder individuell gefertigten Möbeln ist das Widerrufsrecht ausgeschlossen (§ 312g Abs. 2 Nr. 1 BGB).",
-    "",
-    "8. Datenschutz",
-    "Ihre personenbezogenen Daten werden ausschließlich zur Abwicklung des Vertragsverhältnisses verwendet und gemäß DSGVO geschützt.",
-    "",
-    "9. Schlussbestimmungen",
-    "Erfüllungsort und Gerichtsstand ist Musterstadt. Es gilt deutsches Recht. Sollten einzelne Bestimmungen unwirksam sein, bleibt die Wirksamkeit der übrigen Bestimmungen unberührt.",
-    "",
-    "Stand: Dezember 2025"
-  ];
+    doc.text(`Datum: ${today}`, 20, yPos);
+    doc.text("Unterschrift Kunde:", 90, yPos);
+    doc.line(90, yPos + 10, 180, yPos + 10);
 
-  doc.text(agbText, 20, 60, { lineHeightFactor: 1.4, maxWidth: 170 });
+    // AGB auf neuer Seite
+    doc.addPage();
 
-  yPos = 260;
-  doc.setFontSize(10);
-  doc.text(`Datum: ${today}`, 20, yPos);
-  doc.text("Unterschrift Kunde:", 90, yPos);
-  doc.line(90, yPos + 10, 180, yPos + 10);
+    doc.addImage(img, 'PNG', 170, 8, 30, 30);
+    doc.setFontSize(16);
+    doc.setFont(undefined, "bold");
+    doc.text("Casa Divani", 20, 20);
+    doc.setFontSize(14);
+    doc.text("Allgemeine Geschäftsbedingungen (AGB)", 20, 40);
+    doc.setFontSize(9.5);
+    doc.setFont(undefined, "normal");
 
-  doc.save(`Kaufvertrag_${k.kaufvertragsnummer}.pdf`);
+    const agbText = [
+      "1. Geltungsbereich",
+      "Diese Allgemeinen Geschäftsbedingungen gelten für alle Verträge über den Kauf von Waren in unserem Geschäft bzw. über unsere Website.",
+      "",
+      "2. Vertragsschluss",
+      "Der Kaufvertrag kommt durch Übergabe der Ware und Zahlung des Kaufpreises bzw. durch Unterzeichnung des Kaufvertrags zustande.",
+      "",
+      "3. Preise und Zahlung",
+      "Die angegebenen Preise sind Endpreise inkl. gesetzlicher Mehrwertsteuer. Zahlung erfolgt bar, per EC-/Kreditkarte oder per Überweisung. Bei Überweisung ist der Betrag innerhalb von 7 Tagen fällig.",
+      "",
+      "4. Eigentumsvorbehalt",
+      "Die Ware bleibt bis zur vollständigen Bezahlung unser Eigentum.",
+      "",
+      "5. Lieferung und Montage",
+      "Liefertermine sind unverbindlich, es sei denn, sie wurden ausdrücklich schriftlich als verbindlich vereinbart. Montageleistungen sind gesondert zu vergüten, sofern nicht anders vereinbart.",
+      "",
+      "6. Gewährleistung",
+      "Es gelten die gesetzlichen Gewährleistungsregelungen. Offensichtliche Mängel sind unverzüglich, spätestens innerhalb von 14 Tagen nach Erhalt der Ware, zu rügen.",
+      "",
+      "7. Widerrufsrecht",
+      "Bei Fernabsatzverträgen (z. B. Online-Bestellung) besteht ein gesetzliches Widerrufsrecht von 14 Tagen. Bei Maßanfertigungen oder individuell gefertigten Möbeln ist das Widerrufsrecht ausgeschlossen (§ 312g Abs. 2 Nr. 1 BGB).",
+      "",
+      "8. Datenschutz",
+      "Ihre personenbezogenen Daten werden ausschließlich zur Abwicklung des Vertragsverhältnisses verwendet und gemäß DSGVO geschützt.",
+      "",
+      "9. Schlussbestimmungen",
+      "Erfüllungsort und Gerichtsstand ist Musterstadt. Es gilt deutsches Recht. Sollten einzelne Bestimmungen unwirksam sein, bleibt die Wirksamkeit der übrigen Bestimmungen unberührt.",
+      "",
+      "Stand: Dezember 2025"
+    ];
+
+    doc.text(agbText, 20, 60, { lineHeightFactor: 1.4, maxWidth: 170 });
+
+    yPos = 260;
+    doc.setFontSize(10);
+    doc.text(`Datum: ${today}`, 20, yPos);
+    doc.text("Unterschrift Kunde:", 90, yPos);
+    doc.line(90, yPos + 10, 180, yPos + 10);
+
+    doc.save(`Kaufvertrag_${k.kaufvertragsnummer}.pdf`);
+  };
+
+  img.onerror = function () {
+    alert("Logo konnte nicht geladen werden.");
+    doc.save(`Kaufvertrag_${k.kaufvertragsnummer}.pdf`);
+  };
+
+  img.src = logoUrl;
 }
   
 function downloadHerstellerbestellungPDF(k) {
@@ -1511,6 +1539,7 @@ window.onload = () => {
 
 </body>
 </html>
+
 
 
 
