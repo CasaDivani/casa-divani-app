@@ -223,8 +223,8 @@ tr.complete { background-color: #e8f5e9; }
     <div class="modal-content">
       <span class="close" onclick="closeArtikelAddModal()">&times;</span>
       <h2>Artikel hinzufügen</h2>
-      <label for="addArtikelNummer">Artikelnummer</label>
-      <input id="addArtikelNummer" type="text">
+      <label for="addArtikelNummer">Artikelnummer (z. B. CD123456-01 oder CD123456-XX)</label>
+      <input id="addArtikelNummer" type="text" placeholder="CD123456-01">
       <label for="addArtikelName">Artikelname</label>
       <input id="addArtikelName" type="text">
       <label for="addArtikelBeschreibung">Beschreibung</label>
@@ -469,8 +469,34 @@ function closeArtikelAddModal() {
 }
 
 async function artikelHinzufuegenFromModal() {
+  const artikelnummerInput = document.getElementById('addArtikelNummer').value.trim().toUpperCase();
+
+  // 1. Format-Prüfung
+  const regex = /^CD\d{6}-(0[1-9]|[1-9]\d|XX)$/; // CD + 6 Ziffern + -01 bis -99 oder -XX
+  if (!regex.test(artikelnummerInput)) {
+    alert('Ungültige Artikelnummer!\nMuss sein: CD + 6 Ziffern + -01 bis -99 oder -XX\nBeispiel: CD123456-01 oder CD123456-XX');
+    return;
+  }
+
+  // 2. Duplikat-Prüfung (Basisnummer ohne Endung)
+  const basisnummer = artikelnummerInput.substring(0, 8); // z. B. CD123456
+  const endung = artikelnummerInput.substring(8); // z. B. -01 oder -XX
+
+  const duplikat = lager.some(a => {
+    const aBasis = a.artikelnummer.substring(0, 8);
+    const aEndung = a.artikelnummer.substring(8);
+    if (endung === '-XX') return false; // -XX darf mehrmals vorkommen
+    return aBasis === basisnummer;
+  });
+
+  if (duplikat) {
+    alert('Diese Basis-Artikelnummer (ohne Endung -XX) existiert bereits!\nDu kannst nur -XX mehrmals verwenden.');
+    return;
+  }
+
+  // Wenn alles ok – normal weiter
   const newArtikel = {
-    artikelnummer: document.getElementById('addArtikelNummer').value.trim(),
+    artikelnummer: artikelnummerInput,
     name: document.getElementById('addArtikelName').value.trim(),
     beschreibung: document.getElementById('addArtikelBeschreibung').value.trim(),
     auftragsnummer: document.getElementById('addArtikelAuftragsNummer').value.trim(),
@@ -489,7 +515,7 @@ async function artikelHinzufuegenFromModal() {
   if (error) {
     alert('Fehler beim Speichern: ' + error.message);
   } else {
-    await loadLager(); // Sofort neu laden – Artikel erscheint garantiert
+    await loadLager(); // Sofort neu laden
   }
   closeArtikelAddModal();
 }
@@ -1255,6 +1281,7 @@ window.onload = () => {
 
 </body>
 </html>
+
 
 
 
