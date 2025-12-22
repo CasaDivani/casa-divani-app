@@ -1171,7 +1171,7 @@ function downloadKaufvertragPDF(k) {
   img.onload = function () {
     const today = new Date().toLocaleDateString('de-DE');
 
-    // Header-Funktion (außerhalb, damit sie überall verfügbar ist)
+    // Header auf jeder Seite
     function addHeader() {
       doc.addImage(img, 'PNG', 170, 8, 30, 30);
 
@@ -1197,38 +1197,9 @@ function downloadKaufvertragPDF(k) {
       if (k.kunde_ruf) doc.text(`Telefon: ${k.kunde_ruf}`, 20, 62);
     }
 
-    // Checkbox-Funktion (einmal definiert)
-    function drawCheckbox(x, y) {
-      doc.rect(x, y - 6, 6, 6);
-    }
+    addHeader(); // Header auf Seite 1
 
-    // Kästchen + Unterschrift (einmal definiert)
-    function addContractSignatureSection(startY) {
-      let y = startY;
-
-      doc.setFontSize(10);
-      doc.setFont(undefined, "normal");
-
-      doc.text("Der Kunde wurde über warentypische Eigenschaften des Polstermöbels aufgeklärt", 20, y);
-      drawCheckbox(175, y);
-      y += 16;
-
-      doc.text("Hiermit werden die allgemeinen Geschäftsbedingungen akzeptiert", 20, y);
-      drawCheckbox(175, y);
-      y += 16;
-
-      doc.text("Hiermit willige ich ein, aktuelle Newsletter und Werbung zu erhalten", 20, y);
-      drawCheckbox(175, y);
-      y += 30;
-
-      doc.text(`Datum: ${today}`, 20, y);
-      doc.text("Unterschrift Kunde:", 90, y);
-      doc.line(90, y + 10, 180, y + 10);
-    }
-
-    // Seite 1: Header + Artikel + Zahlung
-    addHeader();
-
+    // Artikel-Tabelle
     const artikelRows = k.artikel.map(a => [
       a.name,
       a.artikelnummer,
@@ -1248,38 +1219,59 @@ function downloadKaufvertragPDF(k) {
       margin: { left: 20, right: 20 },
       pageBreak: 'auto',
       didDrawPage: (data) => {
-        if (data.pageNumber > 1) {
-          addHeader(); // Header auf neuen Seiten
-        }
-
-        let yPos = data.cursor.y + 15;
-
-        doc.setFontSize(11);
-        doc.setFont(undefined, "bold");
-        doc.text("Zahlungsübersicht", 20, yPos);
-        yPos += 10;
-
-        doc.autoTable({
-          startY: yPos,
-          theme: 'grid',
-          styles: { fontSize: 10, cellPadding: 3 },
-          headStyles: { fillColor: [100, 100, 100], textColor: 255, fontStyle: 'bold' },
-          head: [['Bezeichnung', 'Betrag €']],
-          body: [
-            ['Gesamtbetrag', k.gesamtbetrag.toFixed(2)],
-            ['Anzahlung', k.anzahlung.toFixed(2)],
-            ['Restbetrag', k.restbetrag.toFixed(2)]
-          ],
-          margin: { left: 20, right: 20 }
-        });
+        if (data.pageNumber > 1) addHeader(); // Header auf neuen Seiten
       }
+    });
+
+    // Zahlungsübersicht nach Artikel
+    let yPos = doc.lastAutoTable.finalY + 15;
+
+    doc.setFontSize(11);
+    doc.setFont(undefined, "bold");
+    doc.text("Zahlungsübersicht", 20, yPos);
+    yPos += 10;
+
+    doc.autoTable({
+      startY: yPos,
+      theme: 'grid',
+      styles: { fontSize: 10, cellPadding: 3 },
+      headStyles: { fillColor: [100, 100, 100], textColor: 255, fontStyle: 'bold' },
+      head: [['Bezeichnung', 'Betrag €']],
+      body: [
+        ['Gesamtbetrag', k.gesamtbetrag.toFixed(2)],
+        ['Anzahlung', k.anzahlung.toFixed(2)],
+        ['Restbetrag', k.restbetrag.toFixed(2)]
+      ],
+      margin: { left: 20, right: 20 }
     });
 
     // Separate Seite für Kästchen + Unterschrift (mit Header)
     doc.addPage();
     addHeader();
 
-    addContractSignatureSection(80);
+    yPos = 80;
+    doc.setFontSize(10);
+    doc.setFont(undefined, "normal");
+
+    function drawCheckbox(x, y) {
+      doc.rect(x, y - 6, 6, 6);
+    }
+
+    doc.text("Der Kunde wurde über warentypische Eigenschaften des Polstermöbels aufgeklärt", 20, yPos);
+    drawCheckbox(175, yPos);
+    yPos += 16;
+
+    doc.text("Hiermit werden die allgemeinen Geschäftsbedingungen akzeptiert", 20, yPos);
+    drawCheckbox(175, yPos);
+    yPos += 16;
+
+    doc.text("Hiermit willige ich ein, aktuelle Newsletter und Werbung zu erhalten", 20, yPos);
+    drawCheckbox(175, yPos);
+    yPos += 30;
+
+    doc.text(`Datum: ${today}`, 20, yPos);
+    doc.text("Unterschrift Kunde:", 90, yPos);
+    doc.line(90, yPos + 10, 180, yPos + 10);
 
     // AGB auf neuer Seite
     doc.addPage();
@@ -1326,7 +1318,7 @@ function downloadKaufvertragPDF(k) {
 
     doc.text(agbText, 20, 60, { lineHeightFactor: 1.4, maxWidth: 170 });
 
-    let y = 260;
+    y = 260;
     doc.setFontSize(10);
     doc.text(`Datum: ${today}`, 20, y);
     doc.text("Unterschrift Kunde:", 90, y);
@@ -1542,6 +1534,7 @@ window.onload = () => {
 
 </body>
 </html>
+
 
 
 
