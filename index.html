@@ -206,10 +206,11 @@ tr.complete { background-color: #e8f5e9; }
   <div class="modal-content">
     <h2>Casa Divani Warenwirtschaft</h2>
     <p>Login für Mitarbeiter</p>
-    <input type="email" id="loginEmail" placeholder="E-Mail">
-    <input type="password" id="loginPass" placeholder="Passwort">
-    <button onclick="login()">Anmelden</button>
+    <input type="email" id="loginEmail" placeholder="E-Mail" required>
+    <input type="password" id="loginPass" placeholder="Passwort" required>
+    <button class="btn-large" onclick="login()">Anmelden</button>
     <p id="authError" style="color:red;margin-top:10px;"></p>
+    <p style="margin-top:20px; font-size:12px;">Neue Mitarbeiter werden vom Admin angelegt.</p>
   </div>
 </div>
 
@@ -460,6 +461,10 @@ let aktuellBearbeitenIndex = null;
 async function login() {
   const email = document.getElementById('loginEmail').value.trim();
   const password = document.getElementById('loginPass').value;
+  if (!email || !password) {
+    document.getElementById('authError').innerText = "Bitte E-Mail und Passwort eingeben.";
+    return;
+  }
   const { data, error } = await supabaseClient.auth.signInWithPassword({ email, password });
   if (error) {
     document.getElementById('authError').innerText = error.message;
@@ -1559,6 +1564,7 @@ window.onload = () => {
 
 </body>
 </html>
+
 
 
 
