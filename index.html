@@ -1166,8 +1166,8 @@ function downloadKaufvertragPDF(k) {
   img.onload = function () {
     const today = new Date().toLocaleDateString('de-DE');
 
-    // Header auf JEDER Seite
-    doc.didDrawPage = function (data) {
+    // Header nur auf Vertragsseiten (nicht auf AGB)
+    function addHeader() {
       doc.addImage(img, 'PNG', 170, 8, 30, 30);
 
       doc.setFontSize(16);
@@ -1184,14 +1184,16 @@ function downloadKaufvertragPDF(k) {
       doc.text(`Datum: ${today}`, 150, 20, { align: "right" });
       doc.text(`Kaufvertragsnummer: ${k.kaufvertragsnummer}`, 150, 28, { align: "right" });
 
-      // Kunde auf jeder Seite
       doc.setFontSize(11);
       doc.setFont(undefined, "normal");
       doc.text(`Kunde: ${k.kunde_vorname} ${k.kunde_nachname}`, 20, 44);
       doc.text(`Adresse: ${k.kunde_strasse}, ${k.kunde_plz}`, 20, 50);
       if (k.kunde_email) doc.text(`E-Mail: ${k.kunde_email}`, 20, 56);
       if (k.kunde_ruf) doc.text(`Telefon: ${k.kunde_ruf}`, 20, 62);
-    };
+    }
+
+    // Vertragsseiten (Header + Artikel + Zahlung)
+    addHeader();
 
     // Artikel-Tabelle
     const artikelRows = k.artikel.map(a => [
@@ -1213,9 +1215,15 @@ function downloadKaufvertragPDF(k) {
       margin: { left: 20, right: 20 },
       pageBreak: 'auto',
       didDrawPage: (data) => {
-        let yPos = data.cursor.y + 20;
+        // Header auf neuen Seiten wiederholen
+        if (data.pageNumber > 1) {
+          addHeader();
+          data.settings.startY = 70; // Platz für Header
+        }
 
-        // Zahlungsübersicht
+        // Zahlungsübersicht nach Artikel
+        let yPos = data.cursor.y + 15;
+
         doc.setFontSize(11);
         doc.setFont(undefined, "bold");
         doc.text("Zahlungsübersicht", 20, yPos);
@@ -1232,46 +1240,43 @@ function downloadKaufvertragPDF(k) {
             ['Anzahlung', k.anzahlung.toFixed(2)],
             ['Restbetrag', k.restbetrag.toFixed(2)]
           ],
-          margin: { left: 20, right: 20 },
-          didDrawPage: (data2) => {
-            addContractSignatureSection(data2.cursor.y + 40);
-          }
+          margin: { left: 20, right: 20 }
         });
       }
     });
 
-    // Kästchen + Unterschrift
-    function addContractSignatureSection(startY) {
-      let y = startY;
+    // Separate Seite für Kästchen + Unterschrift (mit Header)
+    doc.addPage();
+    addHeader();
 
-      doc.setFontSize(10);
-      doc.setFont(undefined, "normal");
+    let y = 80; // Start nach Header
 
-      function drawCheckbox(x, y) {
-        doc.rect(x, y - 6, 6, 6);
-      }
+    doc.setFontSize(10);
+    doc.setFont(undefined, "normal");
 
-      doc.text("Der Kunde wurde über warentypische Eigenschaften des Polstermöbels aufgeklärt", 20, y);
-      drawCheckbox(175, y);
-      y += 16;
-
-      doc.text("Hiermit werden die allgemeinen Geschäftsbedingungen akzeptiert", 20, y);
-      drawCheckbox(175, y);
-      y += 16;
-
-      doc.text("Hiermit willige ich ein, aktuelle Newsletter und Werbung zu erhalten", 20, y);
-      drawCheckbox(175, y);
-      y += 30;
-
-      doc.text(`Datum: ${today}`, 20, y);
-      doc.text("Unterschrift Kunde:", 90, y);
-      doc.line(90, y + 10, 180, y + 10);
+    function drawCheckbox(x, y) {
+      doc.rect(x, y - 6, 6, 6);
     }
 
-    // AGB auf neuer Seite
+    doc.text("Der Kunde wurde über warentypische Eigenschaften des Polstermöbels aufgeklärt", 20, y);
+    drawCheckbox(175, y);
+    y += 16;
+
+    doc.text("Hiermit werden die allgemeinen Geschäftsbedingungen akzeptiert", 20, y);
+    drawCheckbox(175, y);
+    y += 16;
+
+    doc.text("Hiermit willige ich ein, aktuelle Newsletter und Werbung zu erhalten", 20, y);
+    drawCheckbox(175, y);
+    y += 30;
+
+    doc.text(`Datum: ${today}`, 20, y);
+    doc.text("Unterschrift Kunde:", 90, y);
+    doc.line(90, y + 10, 180, y + 10); // Lange Linie, viel Platz
+
+    // AGB auf neuer Seite (kein Header, nur Datum + Unterschrift)
     doc.addPage();
 
-    doc.addImage(img, 'PNG', 170, 8, 30, 30);
     doc.setFontSize(16);
     doc.setFont(undefined, "bold");
     doc.text("Casa Divani", 20, 20);
@@ -1313,11 +1318,12 @@ function downloadKaufvertragPDF(k) {
 
     doc.text(agbText, 20, 60, { lineHeightFactor: 1.4, maxWidth: 170 });
 
-    let y = 260;
+    // Datum + Unterschrift auf AGB-Seite – ganz unten
+    let yAGB = 260;
     doc.setFontSize(10);
-    doc.text(`Datum: ${today}`, 20, y);
-    doc.text("Unterschrift Kunde:", 90, y);
-    doc.line(90, y + 10, 180, y + 10);
+    doc.text(`Datum: ${today}`, 20, yAGB);
+    doc.text("Unterschrift Kunde:", 90, yAGB);
+    doc.line(90, yAGB + 10, 180, yAGB + 10);
 
     doc.save(`Kaufvertrag_${k.kaufvertragsnummer}.pdf`);
   };
@@ -1529,4 +1535,5 @@ window.onload = () => {
 
 </body>
 </html>
+
 
