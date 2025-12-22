@@ -183,9 +183,15 @@ tr.complete { background-color: #e8f5e9; }
     </table>
   </div>
 
-  <!-- Steuerbericht -->
+   <!-- Steuerbericht -->
   <div id="steuerTab" class="tab-content section">
     <h2>Steuerbericht</h2>
+    <div style="margin-bottom: 15px;">
+      <label for="steuerJahrFilter">Jahr filtern:</label>
+      <select id="steuerJahrFilter" onchange="updateSteuerTabelle()">
+        <option value="">Alle Jahre</option>
+      </select>
+    </div>
     <table id="steuerTabelle">
       <tr><th>Kaufvertragsnummer</th><th>Artikel</th><th>Menge</th><th>VK brutto</th><th>EK brutto</th><th>Umsatzsteuer €</th><th>Vorsteuer €</th><th>Steuerlast €</th></tr>
     </table>
@@ -899,32 +905,38 @@ function isArchivComplete(k) {
 
 // Steuerbericht
 function updateSteuerTabelle() {
+  const selectedYear = document.getElementById('steuerJahrFilter').value;
   const table = document.getElementById('steuerTabelle');
   table.innerHTML = `<tr><th>Kaufvertragsnummer</th><th>Artikel</th><th>Menge</th><th>VK brutto</th><th>EK brutto</th><th>Umsatzsteuer €</th><th>Vorsteuer €</th><th>Steuerlast €</th></tr>`;
 
   let gesamtSteuerlast = 0;
 
   archiv.forEach(k => {
-    k.artikel.forEach(a => {
-      const ust = mwstAusBrutto(a.vk, a.steuer);
-      const vst = mwstAusBrutto(a.ek, a.steuer);
-      const steuerlast = ust - vst;
+    // Jahr aus Datum extrahieren (Format DD.MM.YYYY)
+    const kYear = parseInt(k.datum.split('.')[2], 10);
+    if (!selectedYear || kYear == selectedYear) {
+      k.artikel.forEach(a => {
+        const ust = mwstAusBrutto(a.vk, a.steuer);
+        const vst = mwstAusBrutto(a.ek, a.steuer);
+        const steuerlast = ust - vst;
 
-      const row = table.insertRow();
-      row.insertCell(0).innerText = k.kaufvertragsnummer;
-      row.insertCell(1).innerText = a.name;
-      row.insertCell(2).innerText = '1';
-      row.insertCell(3).innerText = a.vk.toFixed(2);
-      row.insertCell(4).innerText = a.ek.toFixed(2);
-      row.insertCell(5).innerText = ust.toFixed(2);
-      row.insertCell(6).innerText = vst.toFixed(2);
-      row.insertCell(7).innerText = steuerlast.toFixed(2);
+        const row = table.insertRow();
+        row.insertCell(0).innerText = k.kaufvertragsnummer;
+        row.insertCell(1).innerText = a.name;
+        row.insertCell(2).innerText = '1';
+        row.insertCell(3).innerText = a.vk.toFixed(2);
+        row.insertCell(4).innerText = a.ek.toFixed(2);
+        row.insertCell(5).innerText = ust.toFixed(2);
+        row.insertCell(6).innerText = vst.toFixed(2);
+        row.insertCell(7).innerText = steuerlast.toFixed(2);
 
-      gesamtSteuerlast += steuerlast;
-    });
+        gesamtSteuerlast += steuerlast;
+      });
+    }
   });
 
-  document.getElementById('steuerSumme').innerText = `Gesamte Steuerlast: ${gesamtSteuerlast.toFixed(2)} €`;
+  const jahrText = selectedYear ? selectedYear : 'alle Jahre';
+  document.getElementById('steuerSumme').innerText = `Gesamte Steuerlast (${jahrText}): ${gesamtSteuerlast.toFixed(2)} €`;
 }
 
 // Umsatzübersicht
@@ -1281,6 +1293,7 @@ window.onload = () => {
 
 </body>
 </html>
+
 
 
 
