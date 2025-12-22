@@ -57,10 +57,31 @@ h2 { margin-top: 30px; margin-bottom: 10px; color: #222; font-weight: 500; }
 .section { background: var(--card-bg); padding: 24px; margin-bottom: 24px; border-radius: var(--border-radius); box-shadow: var(--shadow); overflow-x: auto; transition: var(--transition); min-width: 0; }
 .section:hover { box-shadow: 0 6px 16px rgba(0,0,0,0.12); }
 
-input, select, button { padding: 10px; margin: 6px 0; border-radius: 6px; border: 1px solid #ddd; font-size: 14px; transition: var(--transition); }
-input:focus, select:focus { border-color: var(--primary-color); box-shadow: 0 0 0 2px rgba(76,175,80,0.15); }
-button { background-color: var(--primary-color); color: #fff; border: none; cursor: pointer; font-weight: 500; }
-button:hover { background-color: #45a049; transform: translateY(-1px); }
+input, select, textarea { 
+  padding: 10px; 
+  margin: 6px 0; 
+  border-radius: 6px; 
+  border: 1px solid #ddd; 
+  font-size: 14px; 
+  transition: var(--transition); 
+  width: 100%;
+}
+input:focus, select:focus, textarea:focus { 
+  border-color: var(--primary-color); 
+  box-shadow: 0 0 0 2px rgba(76,175,80,0.15); 
+}
+
+button { 
+  background-color: var(--primary-color); 
+  color: #fff; 
+  border: none; 
+  cursor: pointer; 
+  font-weight: 500; 
+}
+button:hover { 
+  background-color: #45a049; 
+  transform: translateY(-1px); 
+}
 
 table { width: 100%; border-collapse: separate; border-spacing: 0; margin-top: 12px; table-layout: fixed; }
 th, td { border: 1px solid #e0e0e0; padding: 8px 6px; text-align: left; overflow: hidden; text-overflow: ellipsis; font-size: 12px; }
@@ -92,8 +113,52 @@ tr.complete { background-color: #e8f5e9; }
 .btn-pdf { background-color: #607D8B; color: white; margin-right: 5px; } .btn-pdf:hover { background-color: #455A64; }
 .btn-add { background-color: var(--primary-color); color: white; font-size: 16px; padding: 12px 24px; margin-bottom: 16px; }
 
+/* Große Buttons für wichtige Aktionen */
+.btn-large {
+  background-color: var(--primary-color);
+  color: white;
+  font-size: 18px;
+  font-weight: 500;
+  padding: 16px 32px;
+  border-radius: 8px;
+  border: none;
+  cursor: pointer;
+  display: block;
+  width: 100%;
+  max-width: 500px;
+  margin: 20px auto 0 auto;
+  text-align: center;
+  box-shadow: 0 4px 8px rgba(0,0,0,0.1);
+  transition: var(--transition);
+}
+
+.btn-large:hover {
+  background-color: #45a049;
+  transform: translateY(-2px);
+  box-shadow: 0 6px 12px rgba(0,0,0,0.15);
+}
+
+/* Auf Mobile noch größer */
+@media (max-width: 768px) {
+  .btn-large {
+    font-size: 20px;
+    padding: 18px 36px;
+  }
+}
+
 .search-input { margin-bottom: 12px; width: 100%; padding: 10px; border-radius: 6px; border: 1px solid #ddd; }
-.tab { display: inline-block; padding: 12px 24px; background: #e0e0e0; cursor: pointer; border-radius: 6px 6px 0 0; margin-right: 6px; font-weight: 500; transition: var(--transition); }
+
+/* Tabs – normal nebeneinander, nur auf Mobile untereinander */
+.tab { 
+  display: inline-block; 
+  padding: 12px 24px; 
+  background: #e0e0e0; 
+  cursor: pointer; 
+  border-radius: 6px 6px 0 0; 
+  margin-right: 6px; 
+  font-weight: 500; 
+  transition: var(--transition); 
+}
 .tab.active { background: var(--primary-color); color: white; }
 .tab:hover { background: #d0d0d0; }
 
@@ -108,13 +173,34 @@ tr.complete { background-color: #e8f5e9; }
 .close { position: absolute; right: 24px; top: 20px; font-size: 28px; cursor: pointer; color: #999; transition: var(--transition); }
 .close:hover { color: #000; }
 
-@media (max-width: 1200px) { 
-  body { font-size: 12px; }
-  th, td { padding: 6px 4px; font-size: 11px; }
-  .btn { padding: 4px 8px; font-size: 11px; }
-}
+/* Responsive – nur auf kleinen Geräten anpassen */
 @media (max-width: 992px) {
-  .section { overflow-x: auto; }
+  /* Tabs untereinander auf Tablet/Mobile */
+  .tab { 
+    display: block; 
+    width: 100%; 
+    margin-right: 0; 
+    margin-bottom: 8px; 
+    border-radius: 6px; 
+  }
+
+  /* Buttons etwas größer für Touch */
+  .btn, button { 
+    padding: 10px 14px; 
+    font-size: 14px; 
+  }
+
+  /* Tabellen horizontal scrollen */
+  .section { overflow-x: auto; -webkit-overflow-scrolling: touch; }
+  table { min-width: 900px; } /* Mindestbreite für Lesbarkeit */
+}
+
+@media (max-width: 600px) {
+  h1 { font-size: 26px; padding-right: 80px; line-height: 70px; }
+  h1 img { height: 60px; }
+  h2 { font-size: 20px; }
+  body { font-size: 14px; }
+  th, td { font-size: 11px; padding: 6px 4px; }
 }
 </style>
 </head>
@@ -171,7 +257,7 @@ tr.complete { background-color: #e8f5e9; }
       <tr><th>Artikelname</th><th>Artikelnummer</th><th>Beschreibung</th><th>Menge</th><th>VK brutto</th><th>MwSt €</th><th>Aktion</th></tr>
     </table>
 
-    <button onclick="openKundeModal()">Kundendaten erfassen & Kaufvertrag abschließen</button>
+    <button class="btn-large" onclick="openKundeModal()">Kundendaten erfassen & Kaufvertrag abschließen</button>
   </div>
 
   <!-- Archiv -->
@@ -183,12 +269,12 @@ tr.complete { background-color: #e8f5e9; }
     </table>
   </div>
 
-   <!-- Steuerbericht -->
+  <!-- Steuerbericht -->
   <div id="steuerTab" class="tab-content section">
     <h2>Steuerbericht</h2>
-    <div style="margin-bottom: 15px;">
-      <label for="steuerJahrFilter">Jahr filtern:</label>
-      <select id="steuerJahrFilter" onchange="updateSteuerTabelle()">
+    <div style="margin-bottom: 20px;">
+      <label for="steuerJahrFilter" style="display: inline-block; width: 120px; font-weight: bold;">Jahr filtern:</label>
+      <select id="steuerJahrFilter" onchange="updateSteuerTabelle()" style="display: inline-block; width: auto; padding: 8px; font-size: 14px; border-radius: 6px; border: 1px solid #ddd;">
         <option value="">Alle Jahre</option>
       </select>
     </div>
@@ -196,12 +282,18 @@ tr.complete { background-color: #e8f5e9; }
       <tr><th>Kaufvertragsnummer</th><th>Artikel</th><th>Menge</th><th>VK brutto</th><th>EK brutto</th><th>Umsatzsteuer €</th><th>Vorsteuer €</th><th>Steuerlast €</th></tr>
     </table>
     <p id="steuerSumme" style="margin-top:10px;font-weight:bold;"></p>
-    <button onclick="downloadSteuerPDF()">PDF Steuerbericht</button>
+    <button class="btn-large" onclick="downloadSteuerPDF()">PDF Steuerbericht herunterladen</button>
   </div>
 
   <!-- Umsatzübersicht -->
   <div id="umsatzTab" class="tab-content section">
     <h2>Umsatzübersicht</h2>
+    <div style="margin-bottom: 20px;">
+      <label for="umsatzJahrFilter" style="display: inline-block; width: 120px; font-weight: bold;">Jahr filtern:</label>
+      <select id="umsatzJahrFilter" onchange="updateUmsatzTabelle()" style="display: inline-block; width: auto; padding: 8px; font-size: 14px; border-radius: 6px; border: 1px solid #ddd;">
+        <option value="">Alle Jahre</option>
+      </select>
+    </div>
     <table id="umsatzTabelle">
       <tr><th>Kaufvertragsnummer</th><th>Artikel</th><th>VK brutto €</th><th>EK brutto €</th><th>Reingewinn €</th></tr>
     </table>
@@ -233,8 +325,8 @@ tr.complete { background-color: #e8f5e9; }
       <input id="addArtikelNummer" type="text" placeholder="CD123456-01">
       <label for="addArtikelName">Artikelname</label>
       <input id="addArtikelName" type="text">
-      <label for="addArtikelBeschreibung">Beschreibung</label>
-      <input id="addArtikelBeschreibung" type="text">
+      <label for="addArtikelBeschreibung">Beschreibung (Enter für Zeilenumbruch)</label>
+      <textarea id="addArtikelBeschreibung" rows="8" placeholder="Hier kannst du mehrere Zeilen schreiben..."></textarea>
       <label for="addArtikelAuftragsNummer">Auftragsnummer</label>
       <input id="addArtikelAuftragsNummer" type="text">
       <label for="addArtikelWareneingang">Wareneingang (Datum)</label>
@@ -266,8 +358,8 @@ tr.complete { background-color: #e8f5e9; }
       <input id="editArtikelNummer" type="text">
       <label for="editArtikelName">Artikelname</label>
       <input id="editArtikelName" type="text">
-      <label for="editArtikelBeschreibung">Beschreibung</label>
-      <input id="editArtikelBeschreibung" type="text">
+      <label for="editArtikelBeschreibung">Beschreibung (Enter für Zeilenumbruch)</label>
+      <textarea id="editArtikelBeschreibung" rows="8"></textarea>
       <label for="editArtikelAuftragsNummer">Auftragsnummer</label>
       <input id="editArtikelAuftragsNummer" type="text">
       <label for="editArtikelWareneingang">Wareneingang (Datum)</label>
@@ -308,7 +400,7 @@ tr.complete { background-color: #e8f5e9; }
         <option value="Überweisung">Überweisung</option>
       </select>
       <input type="date" id="ueberweisungsDatum" style="display:none;">
-      <button onclick="saveKaufvertrag()">Speichern & Kaufvertrag abschließen</button>
+      <button class="btn-large" onclick="saveKaufvertrag()">Speichern & Kaufvertrag abschließen</button>
     </div>
   </div>
 
@@ -351,8 +443,6 @@ tr.complete { background-color: #e8f5e9; }
       <button onclick="artikelInKaufvertragAenderungSpeichern()">Änderung speichern</button>
     </div>
   </div>
-
-</div>
 
 <script>
 // Supabase Initialisierung
@@ -603,25 +693,41 @@ function filterLager() {
       row.insertCell(10).innerText = a.steuer + '%';
       row.insertCell(11).innerText = a.in_ausstellung ? 'Ja' : 'Nein';
 
-      const cell = row.insertCell(12);
+            const cell = row.insertCell(12);
+
+      // Button Bearbeiten
       const btnEdit = document.createElement('button');
-      btnEdit.className = 'btn btn-edit'; btnEdit.innerText = 'Bearbeiten';
+      btnEdit.className = 'btn btn-edit';
+      btnEdit.innerText = 'Bearbeiten';
       btnEdit.onclick = () => editArtikel(i);
+
+      // Button Löschen
       const btnDel = document.createElement('button');
-      btnDel.className = 'btn btn-delete'; btnDel.innerText = 'Löschen';
+      btnDel.className = 'btn btn-delete';
+      btnDel.innerText = 'Löschen';
       btnDel.onclick = async () => {
         const { error } = await supabaseClient.from('lager').delete().eq('id', a.id);
         if (error) alert('Fehler: ' + error.message);
         else await loadLager();
       };
+
+      // Button Preisschild
+      const btnPreis = document.createElement('button');
+      btnPreis.className = 'btn btn-pdf';
+      btnPreis.innerText = 'Preisschild';
+      btnPreis.onclick = () => downloadPreisschildPDF(a);
+
+      // Buttons zur Zelle hinzufügen
       cell.appendChild(btnEdit);
       cell.appendChild(btnDel);
+      cell.appendChild(btnPreis);
 
+      // Bezahlt-Spalte
       row.insertCell(13).innerText = a.bezahlt || '-';
     }
   });
 }
-
+  
 // Kaufvertrag
 function updateVerkaufTabelle() {
   const filter = document.getElementById('verkaufSuche').value.toLowerCase().trim();
@@ -911,8 +1017,27 @@ function updateSteuerTabelle() {
 
   let gesamtSteuerlast = 0;
 
+  // Alle Jahre sammeln und Dropdown aktualisieren
+  const years = new Set();
   archiv.forEach(k => {
-    // Jahr aus Datum extrahieren (Format DD.MM.YYYY)
+    const kYear = parseInt(k.datum.split('.')[2], 10); // Jahr aus DD.MM.YYYY
+    years.add(kYear);
+  });
+
+  // Dropdown aktualisieren (nur einmal, wenn leer)
+  const select = document.getElementById('steuerJahrFilter');
+  if (select.options.length === 1) { // Nur "Alle Jahre" vorhanden
+    const sortedYears = Array.from(years).sort((a, b) => a - b);
+    sortedYears.forEach(year => {
+      const option = document.createElement('option');
+      option.value = year;
+      option.textContent = year;
+      select.appendChild(option);
+    });
+  }
+
+  // Tabelle filtern
+  archiv.forEach(k => {
     const kYear = parseInt(k.datum.split('.')[2], 10);
     if (!selectedYear || kYear == selectedYear) {
       k.artikel.forEach(a => {
@@ -941,32 +1066,62 @@ function updateSteuerTabelle() {
 
 // Umsatzübersicht
 function updateUmsatzTabelle() {
+  const selectedYear = document.getElementById('umsatzJahrFilter').value;
   const table = document.getElementById('umsatzTabelle');
   table.innerHTML = `<tr><th>Kaufvertragsnummer</th><th>Artikel</th><th>VK brutto €</th><th>EK brutto €</th><th>Reingewinn €</th></tr>`;
 
   let sumVK = 0, sumEK = 0, sumGewinn = 0;
 
+  // Alle Jahre sammeln
+  const years = new Set();
   archiv.forEach(k => {
-    k.artikel.forEach(a => {
-      const ust = mwstAusBrutto(a.vk, a.steuer);
-      const vst = mwstAusBrutto(a.ek, a.steuer);
-      const steuerlast = ust - vst;
-      const gewinn = (a.vk - a.ek) - steuerlast;
-
-      sumVK += a.vk;
-      sumEK += a.ek;
-      sumGewinn += gewinn;
-
-      const row = table.insertRow();
-      row.insertCell(0).innerText = k.kaufvertragsnummer;
-      row.insertCell(1).innerText = a.name;
-      row.insertCell(2).innerText = a.vk.toFixed(2);
-      row.insertCell(3).innerText = a.ek.toFixed(2);
-      row.insertCell(4).innerText = gewinn.toFixed(2);
-    });
+    const kYear = parseInt(k.datum.split('.')[2], 10);
+    years.add(kYear);
   });
 
-  document.getElementById('umsatzSumme').innerText = `Gesamt VK brutto: ${sumVK.toFixed(2)} € | Gesamt EK brutto: ${sumEK.toFixed(2)} € | Reingewinn: ${sumGewinn.toFixed(2)} €`;
+  // Dropdown neu füllen (immer aktuell)
+  const select = document.getElementById('umsatzJahrFilter');
+  select.innerHTML = '<option value="">Alle Jahre</option>';
+  const sortedYears = Array.from(years).sort((a, b) => a - b);
+  sortedYears.forEach(year => {
+    const option = document.createElement('option');
+    option.value = year;
+    option.textContent = year;
+    select.appendChild(option);
+  });
+
+  // Ausgewähltes Jahr wiederherstellen (falls vorhanden)
+  if (selectedYear && sortedYears.includes(parseInt(selectedYear))) {
+    select.value = selectedYear;
+  }
+
+  // Tabelle filtern
+  archiv.forEach(k => {
+    const kYear = parseInt(k.datum.split('.')[2], 10);
+    if (!selectedYear || kYear == selectedYear) {
+      k.artikel.forEach(a => {
+        const ust = mwstAusBrutto(a.vk, a.steuer);
+        const vst = mwstAusBrutto(a.ek, a.steuer);
+        const steuerlast = ust - vst;
+        const gewinn = (a.vk - a.ek) - steuerlast;
+
+        sumVK += a.vk;
+        sumEK += a.ek;
+        sumGewinn += gewinn;
+
+        const row = table.insertRow();
+        row.insertCell(0).innerText = k.kaufvertragsnummer;
+        row.insertCell(1).innerText = a.name;
+        row.insertCell(2).innerText = a.vk.toFixed(2);
+        row.insertCell(3).innerText = a.ek.toFixed(2);
+        row.insertCell(4).innerText = gewinn.toFixed(2);
+      });
+    }
+  });
+
+  const jahrText = selectedYear ? selectedYear : 'alle Jahre';
+  document.getElementById('umsatzSumme').innerText = 
+    `Gesamt VK brutto (${jahrText}): ${sumVK.toFixed(2)} € | Gesamt EK brutto: ${sumEK.toFixed(2)} € | Reingewinn: ${sumGewinn.toFixed(2)} €`;
 }
 
 // Forderungen/Verbindlichkeiten
@@ -1279,6 +1434,76 @@ function downloadSteuerPDF() {
   doc.save('Steuerbericht.pdf');
 }
 
+  // Preisschild PDF (DIN A6) – angepasst
+function downloadPreisschildPDF(a) {
+  const { jsPDF } = window.jspdf;
+  const doc = new jsPDF({
+    orientation: 'portrait',
+    unit: 'mm',
+    format: [105, 148] // DIN A6 Hochformat
+  });
+
+  const logoUrl = "https://i.imgur.com/o8Lowx7.png";
+  const img = new Image();
+  img.crossOrigin = "Anonymous";
+
+  img.onload = function () {
+    // Logo rechts oben dezent (klein, 20x20 mm, 5 mm Abstand vom Rand)
+    doc.addImage(img, 'PNG', 105 - 25, 5, 20, 20);
+
+    // Überschrift links oben
+    doc.setFontSize(14);
+    doc.setFont(undefined, 'bold');
+    doc.text("Polstergarnitur", 10, 20);
+
+    // Artikelname darunter
+    doc.setFontSize(18);
+    doc.text(a.name, 10, 30);
+
+    // Beschreibung (mehrzeilig, linksbündig)
+    doc.setFontSize(12);
+    doc.setFont(undefined, 'normal');
+    const beschreibungLines = doc.splitTextToSize(a.beschreibung || 'Keine Beschreibung', 85); // 85 mm Breite
+    doc.text(beschreibungLines, 10, 45);
+
+    // "Sonderpreis bei Abholung" unten zentriert
+    doc.setFontSize(14);
+    doc.setFont(undefined, 'normal');
+    doc.text("Sonderpreis bei Abholung", 52.5, 110, { align: 'center' });
+
+    // Preis groß und fett darunter
+    doc.setFontSize(32);
+    doc.setFont(undefined, 'bold');
+    // Preis ohne unnötige Dezimalstellen (1999 € statt 1999.00 €)
+    const preis = a.vk % 1 === 0 ? Math.round(a.vk) : a.vk.toFixed(2);
+    doc.text(preis + ' €', 52.5, 130, { align: 'center' });
+
+    doc.save(`Preisschild_${a.artikelnummer}.pdf`);
+  };
+
+  img.onerror = function () {
+    alert("Logo konnte nicht geladen werden – Preisschild ohne Logo.");
+    // Fallback ohne Logo
+    doc.setFontSize(14);
+    doc.setFont(undefined, 'bold');
+    doc.text("Polstergarnitur", 10, 20);
+    doc.setFontSize(18);
+    doc.text(a.name, 10, 30);
+    doc.setFontSize(12);
+    const beschreibungLines = doc.splitTextToSize(a.beschreibung || 'Keine Beschreibung', 85);
+    doc.text(beschreibungLines, 10, 45);
+    doc.setFontSize(14);
+    doc.text("Sonderpreis bei Abholung", 52.5, 110, { align: 'center' });
+    doc.setFontSize(32);
+    doc.setFont(undefined, 'bold');
+    const preis = a.vk % 1 === 0 ? Math.round(a.vk) : a.vk.toFixed(2);
+    doc.text(preis + ' €', 52.5, 120, { align: 'center' });
+    doc.save(`Preisschild_${a.artikelnummer}.pdf`);
+  };
+
+  img.src = logoUrl;
+}
+  
 // Init beim Laden
 window.onload = () => {
   supabaseClient.auth.getSession().then(({ data: { session } }) => {
@@ -1293,6 +1518,8 @@ window.onload = () => {
 
 </body>
 </html>
+
+
 
 
 
