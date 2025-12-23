@@ -1193,6 +1193,14 @@ function updateArchivTabelle() {
     if (filter === '' || text.includes(filter)) {
       const row = table.insertRow();
       if (isArchivComplete(k)) row.classList.add('complete');
+
+      // Visuell ausgrauen bei STORNIERT
+      if (k.kunde_vorname === 'STORNIERT') {
+        row.style.backgroundColor = '#f0f0f0';
+        row.style.color = '#999';
+        row.style.textDecoration = 'line-through';
+      }
+
       row.insertCell(0).innerText = k.kaufvertragsnummer;
       row.insertCell(1).innerText = k.kunde_vorname + ' ' + k.kunde_nachname;
       row.insertCell(2).innerText = k.datum;
@@ -1207,72 +1215,73 @@ function updateArchivTabelle() {
       const btnEdit = document.createElement('button');
       btnEdit.className = 'btn btn-edit'; btnEdit.innerText = 'Bearbeiten';
       btnEdit.onclick = () => editKaufvertrag(i);
-      const btnDel = document.createElement('button');
-      btnDel.className = 'btn btn-delete'; btnDel.innerText = 'Löschen';
-      btnDel.onclick = async () => {
-        if (!confirm('Kaufvertrag wirklich löschen? Die Artikel werden zurück ins Lager gebucht.')) return;
+      const btnStorno = document.createElement('button');
+      btnStorno.className = 'btn btn-delete'; btnStorno.innerText = 'Stornieren';
+      btnStorno.onclick = async () => {
+        if (!confirm('Kaufvertrag stornieren? Der Vertrag wird als STORNIERT markiert und Artikel zurück ins Lager gebucht.')) return;
 
-        // 1. archiv_artikel löschen
+        // Kundenname auf STORNIERT setzen und Felder leeren
+        const updated = {
+          kunde_vorname: 'STORNIERT',
+          kunde_nachname: '',
+          kunde_strasse: '',
+          kunde_plz: '',
+          kunde_ruf: '',
+          kunde_email: '',
+          ausgeliefert: null,
+          abgerechnet: null,
+          hersteller_bezahlt: null,
+          auftragsnummer: '',
+          restbetrag: 0,
+          anzahlung: k.gesamtbetrag
+        };
+
+        const { error: updateError } = await supabaseClient.from('archiv').update(updated).eq('id', k.id);
+        if (updateError) {
+          alert('Fehler beim Stornieren: ' + updateError.message);
+          return;
+        }
+
+        // archiv_artikel löschen (Artikelnummern freigeben)
         const { error: artikelError } = await supabaseClient.from('archiv_artikel').delete().eq('archiv_id', k.id);
         if (artikelError) {
-          alert('Fehler beim Löschen der Artikel: ' + artikelError.message);
+          alert('Fehler beim Freigeben der Artikel: ' + artikelError.message);
           return;
         }
 
-        // 2. archiv-Eintrag löschen
-        const { error: archivError } = await supabaseClient.from('archiv').delete().eq('id', k.id);
-        if (archivError) {
-          alert('Fehler beim Löschen des Kaufvertrags: ' + archivError.message);
-          return;
-        }
-
-        // 3. Artikel zurück ins Lager buchen – alle Promises sammeln
-        const promises = [];
-
+        // Artikel zurück ins Lager buchen
         for (const a of k.artikel) {
-          const promise = supabaseClient
+          const { data: existData } = await supabaseClient
             .from('lager')
             .select('id, menge')
             .eq('artikelnummer', a.artikelnummer)
-            .maybeSingle()
-            .then(({ data: existData, error: findError }) => {
-              if (findError && findError.code !== 'PGRST116') {
-                console.error('Fehler beim Suchen im Lager: ' + findError.message);
-                return;
-              }
+            .maybeSingle();
 
-              if (existData) {
-                return supabaseClient
-                  .from('lager')
-                  .update({ menge: existData.menge + 1 })
-                  .eq('id', existData.id);
-              } else {
-                const newLagerArtikel = {
-                  artikelnummer: a.artikelnummer,
-                  name: a.name,
-                  beschreibung: a.beschreibung,
-                  auftragsnummer: a.auftragsnummer || '',
-                  wareneingang: a.wareneingang || null,
-                  herkunft_l: a.herkunft_l || false,
-                  herkunft_b: a.herkunft_b || false,
-                  ek: a.ek,
-                  vk: a.vk,
-                  menge: 1,
-                  steuer: a.steuer,
-                  in_ausstellung: a.in_ausstellung || false,
-                  bezahlt: a.bezahlt || null
-                };
-                return supabaseClient.from('lager').insert([newLagerArtikel]);
-              }
-            });
-
-          promises.push(promise);
+          if (existData) {
+            await supabaseClient
+              .from('lager')
+              .update({ menge: existData.menge + 1 })
+              .eq('id', existData.id);
+          } else {
+            const newLagerArtikel = {
+              artikelnummer: a.artikelnummer,
+              name: a.name,
+              beschreibung: a.beschreibung,
+              auftragsnummer: a.auftragsnummer || '',
+              wareneingang: a.wareneingang || null,
+              herkunft_l: a.herkunft_l || false,
+              herkunft_b: a.herkunft_b || false,
+              ek: a.ek,
+              vk: a.vk,
+              menge: 1,
+              steuer: a.steuer,
+              in_ausstellung: a.in_ausstellung || false,
+              bezahlt: a.bezahlt || null
+            };
+            await supabaseClient.from('lager').insert([newLagerArtikel]);
+          }
         }
 
-        // Alle Promises abwarten
-        await Promise.all(promises);
-
-        // 4. Alles neu laden
         await loadArchiv();
         await loadLager();
         await updateForderungenVerbindlichkeiten();
@@ -1281,7 +1290,7 @@ function updateArchivTabelle() {
       btnPDF.className = 'btn btn-pdf'; btnPDF.innerText = 'Kaufvertrag PDF';
       btnPDF.onclick = () => downloadKaufvertragPDF(k);
       cell.appendChild(btnEdit);
-      cell.appendChild(btnDel);
+      cell.appendChild(btnStorno);
       cell.appendChild(btnPDF);
       if (k.artikel.some(a => a.kommission_herkunft)) {
         const btnHerstellerPDF = document.createElement('button');
@@ -1910,6 +1919,7 @@ window.onload = () => {
 
 </body>
 </html>
+
 
 
 
