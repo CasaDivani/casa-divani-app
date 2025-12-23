@@ -1226,46 +1226,51 @@ function updateArchivTabelle() {
           return;
         }
 
-        // 3. Artikel sequentiell zurück ins Lager buchen
+        // 3. Artikel zurück ins Lager buchen – alle Promises sammeln
+        const promises = [];
+
         for (const a of k.artikel) {
-          const { data: existData, error: findError } = await supabaseClient
+          const promise = supabaseClient
             .from('lager')
             .select('id, menge')
             .eq('artikelnummer', a.artikelnummer)
-            .maybeSingle();
+            .maybeSingle()
+            .then(({ data: existData, error: findError }) => {
+              if (findError && findError.code !== 'PGRST116') {
+                console.error('Fehler beim Suchen im Lager: ' + findError.message);
+                return;
+              }
 
-          if (findError && findError.code !== 'PGRST116') {
-            console.error('Fehler beim Suchen im Lager: ' + findError.message);
-            continue;
-          }
+              if (existData) {
+                return supabaseClient
+                  .from('lager')
+                  .update({ menge: existData.menge + 1 })
+                  .eq('id', existData.id);
+              } else {
+                const newLagerArtikel = {
+                  artikelnummer: a.artikelnummer,
+                  name: a.name,
+                  beschreibung: a.beschreibung,
+                  auftragsnummer: a.auftragsnummer || '',
+                  wareneingang: a.wareneingang || null,
+                  herkunft_l: a.herkunft_l || false,
+                  herkunft_b: a.herkunft_b || false,
+                  ek: a.ek,
+                  vk: a.vk,
+                  menge: 1,
+                  steuer: a.steuer,
+                  in_ausstellung: a.in_ausstellung || false,
+                  bezahlt: a.bezahlt || null
+                };
+                return supabaseClient.from('lager').insert([newLagerArtikel]);
+              }
+            });
 
-          if (existData) {
-            const { error: updateError } = await supabaseClient
-              .from('lager')
-              .update({ menge: existData.menge + 1 })
-              .eq('id', existData.id);
-
-            if (updateError) console.error('Fehler beim Aktualisieren der Menge: ' + updateError.message);
-          } else {
-            const newLagerArtikel = {
-              artikelnummer: a.artikelnummer,
-              name: a.name,
-              beschreibung: a.beschreibung,
-              auftragsnummer: a.auftragsnummer || '',
-              wareneingang: a.wareneingang || null,
-              herkunft_l: a.herkunft_l || false,
-              herkunft_b: a.herkunft_b || false,
-              ek: a.ek,
-              vk: a.vk,
-              menge: 1,
-              steuer: a.steuer,
-              in_ausstellung: a.in_ausstellung || false,
-              bezahlt: a.bezahlt || null
-            };
-            const { error: insertError } = await supabaseClient.from('lager').insert([newLagerArtikel]);
-            if (insertError) console.error('Fehler beim Anlegen im Lager: ' + insertError.message);
-          }
+          promises.push(promise);
         }
+
+        // Alle Promises abwarten
+        await Promise.all(promises);
 
         // 4. Alles neu laden
         await loadArchiv();
@@ -1905,6 +1910,7 @@ window.onload = () => {
 
 </body>
 </html>
+
 
 
 
