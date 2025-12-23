@@ -649,6 +649,21 @@ async function artikelHinzufuegenFromModal() {
     alert('Fehler beim Speichern: ' + error.message);
   } else {
     await loadLager();
+    await updateForderungenVerbindlichkeiten();
+      // Felder leeren nach Speichern
+  document.getElementById('addArtikelNummer').value = '';
+  document.getElementById('addArtikelName').value = '';
+  document.getElementById('addArtikelBeschreibung').value = '';
+  document.getElementById('addArtikelAuftragsNummer').value = '';
+  document.getElementById('addArtikelWareneingang').value = '';
+  document.getElementById('addArtikelLager').checked = false;
+  document.getElementById('addArtikelKommission').checked = false;
+  document.getElementById('addArtikelEK').value = '';
+  document.getElementById('addArtikelVK').value = '';
+  document.getElementById('addArtikelMenge').value = '';
+  document.getElementById('addArtikelSteuer').value = '19';
+  document.getElementById('addArtikelInAusstellung').checked = false;
+  document.getElementById('addArtikelBezahlt').value = '';
   }
   closeArtikelAddModal();
 }
@@ -674,8 +689,9 @@ function editArtikel(index) {
 
 async function artikelAenderungSpeichern() {
   if (aktuellBearbeitenIndex === null) return;
-  const updatedArtikelnummer = document.getElementById('editArtikelNummer').value.trim().toUpperCase();
   const aktuellerArtikel = lager[aktuellBearbeitenIndex];
+
+  const updatedArtikelnummer = document.getElementById('editArtikelNummer').value.trim().toUpperCase();
 
   // Format-Prüfung
   const regex = /^CD\d{6}-(\d{2}|XX)$/;
@@ -697,6 +713,7 @@ async function artikelAenderungSpeichern() {
     return;
   }
 
+  // Wareneingang-Prüfung
   const herkunft_b = document.getElementById('editArtikelKommission').checked;
   const wareneingang = document.getElementById('editArtikelWareneingang').value || null;
 
@@ -704,26 +721,52 @@ async function artikelAenderungSpeichern() {
     alert('Wareneingang-Datum ist erforderlich, wenn Herkunft nicht "B (Kommissions Bestellung)" ist.');
     return;
   }
-  
+
+  const bezahlt = document.getElementById('editArtikelBezahlt').value || null;
+
   const updatedArtikel = {
     artikelnummer: updatedArtikelnummer,
     name: document.getElementById('editArtikelName').value.trim(),
     beschreibung: document.getElementById('editArtikelBeschreibung').value.trim(),
     auftragsnummer: document.getElementById('editArtikelAuftragsNummer').value.trim(),
-    wareneingang: document.getElementById('editArtikelWareneingang').value || null,
+    wareneingang: wareneingang,
     herkunft_l: document.getElementById('editArtikelLager').checked,
-    herkunft_b: document.getElementById('editArtikelKommission').checked,
+    herkunft_b: herkunft_b,
     ek: parseFloat(document.getElementById('editArtikelEK').value),
     vk: parseFloat(document.getElementById('editArtikelVK').value),
     menge: parseInt(document.getElementById('editArtikelMenge').value),
     steuer: parseInt(document.getElementById('editArtikelSteuer').value),
     in_ausstellung: document.getElementById('editArtikelInAusstellung').checked,
-    bezahlt: document.getElementById('editArtikelBezahlt').value || null
+    bezahlt: bezahlt
   };
 
-  const { error } = await supabaseClient.from('lager').update(updatedArtikel).eq('id', aktuellerArtikel.id);
-  if (error) alert('Fehler: ' + error.message);
-  else await loadLager();
+  // Lager aktualisieren
+  const { error: lagerError } = await supabaseClient.from('lager').update(updatedArtikel).eq('id', aktuellerArtikel.id);
+  if (lagerError) {
+    alert('Fehler beim Speichern im Lager: ' + lagerError.message);
+    return;
+  }
+
+  // Wenn Bezahlt-Datum geändert → alle passenden Archiv-Einträge aktualisieren
+  if (bezahlt !== aktuellerArtikel.bezahlt) { // Nur bei Änderung
+    const { data: archivArtikel, error: findError } = await supabaseClient
+      .from('archiv_artikel')
+      .select('archiv_id')
+      .eq('artikelnummer', updatedArtikelnummer);
+
+    if (findError) {
+      console.error('Fehler beim Suchen der Archiv-Einträge: ' + findError.message);
+    } else if (archivArtikel && archivArtikel.length > 0) {
+      const archivIds = archivArtikel.map(a => a.archiv_id);
+      await supabaseClient.from('archiv')
+        .update({ hersteller_bezahlt: bezahlt })
+        .in('id', archivIds);
+    }
+  }
+
+  await loadLager();
+  await loadArchiv(); // Für Offene Verbindlichkeiten aktualisieren
+  await updateForderungenVerbindlichkeiten();
   aktuellBearbeitenIndex = null;
   document.getElementById('artikelEditModal').style.display = 'none';
 }
@@ -775,6 +818,7 @@ function filterLager() {
         const { error } = await supabaseClient.from('lager').delete().eq('id', a.id);
         if (error) alert('Fehler: ' + error.message);
         else await loadLager();
+        await updateForderungenVerbindlichkeiten(); // Offene Verbindlichkeiten aktualisieren
       };
 
       const btnPreis = document.createElement('button');
@@ -790,7 +834,6 @@ function filterLager() {
     }
   });
 }
-
 // Kaufvertrag
 function updateVerkaufTabelle() {
   const filter = document.getElementById('verkaufSuche').value.toLowerCase().trim();
@@ -1084,9 +1127,8 @@ async function kaufvertragAenderungSpeichern() {
     return;
   }
 
-  // 2. Wenn Herstellerverbindlichkeiten bezahlt → Artikel "Bezahlt" aktualisieren
-  if (hersteller_bezahlt) {
-    // Alle Artikelnummern aus diesem Kaufvertrag holen
+  // 2. Wenn Herstellerverbindlichkeiten bezahlt geändert → Lager "Bezahlt" aktualisieren
+  if (hersteller_bezahlt !== k.hersteller_bezahlt) { // Nur bei Änderung
     const { data: artikelData, error: artikelError } = await supabaseClient
       .from('archiv_artikel')
       .select('artikelnummer')
@@ -1097,7 +1139,6 @@ async function kaufvertragAenderungSpeichern() {
     } else if (artikelData && artikelData.length > 0) {
       const artikelnummern = artikelData.map(a => a.artikelnummer);
 
-      // Lager-Artikel mit diesen Nummern finden und "bezahlt" setzen
       const { error: lagerError } = await supabaseClient
         .from('lager')
         .update({ bezahlt: hersteller_bezahlt })
@@ -1107,7 +1148,10 @@ async function kaufvertragAenderungSpeichern() {
     }
   }
 
-  await loadArchiv(); // Alles neu laden (Archiv, Forderungen, Lager)
+  await loadArchiv(); // Alles neu laden
+  await loadLager(); // Für Offene Verbindlichkeiten
+  await updateForderungenVerbindlichkeiten(); // Explizit aktualisieren
+
   aktuellBearbeitenArchivIndex = null;
   document.getElementById('kaufvertragEditModal').style.display = 'none';
 }
@@ -1184,6 +1228,7 @@ function updateArchivTabelle() {
 
         await loadArchiv();
         await loadLager(); // Lager + Kaufvertrag-Reiter aktualisieren
+        await updateForderungenVerbindlichkeiten();
       };
       const btnPDF = document.createElement('button');
       btnPDF.className = 'btn btn-pdf'; btnPDF.innerText = 'Kaufvertrag PDF';
@@ -1323,6 +1368,7 @@ function updateUmsatzTabelle() {
 
 // Forderungen/Verbindlichkeiten
 function updateForderungenVerbindlichkeiten() {
+  // Offene Forderungen (wie bisher)
   const forderungenTable = document.getElementById('forderungenTabelle');
   forderungenTable.innerHTML = '<tr><th>Kaufvertragsnummer</th><th>Kunde</th><th>Restbetrag €</th><th>Bezahlt</th><th>Aktionen</th></tr>';
   let sumForderungen = 0;
@@ -1345,27 +1391,40 @@ function updateForderungenVerbindlichkeiten() {
 
   document.getElementById('forderungenSumme').innerText = `Gesamte offene Forderungen: ${sumForderungen.toFixed(2)} €`;
 
+  // Offene Verbindlichkeiten (nur wenn Bezahlt leer)
   const verbindlichkeitenTable = document.getElementById('verbindlichkeitenTabelle');
   verbindlichkeitenTable.innerHTML = '<tr><th>Kaufvertragsnummer</th><th>Artikelnummer</th><th>Name</th><th>AuftragsNr.</th><th>EK brutto €</th><th>Bezahlt</th><th>Aktionen</th></tr>';
   let sumVerbindlichkeiten = 0;
 
-  archiv.forEach((k, i) => {
+  // Aus Archiv (kommission_herkunft = true und hersteller_bezahlt leer)
+  archiv.forEach(k => {
     if (!k.hersteller_bezahlt) {
       k.artikel.forEach(a => {
-        const row = verbindlichkeitenTable.insertRow();
-        row.insertCell(0).innerText = k.kaufvertragsnummer;
-        row.insertCell(1).innerText = a.artikelnummer;
-        row.insertCell(2).innerText = a.name;
-        row.insertCell(3).innerText = a.auftragsnummer || '-';
-        row.insertCell(4).innerText = a.ek.toFixed(2);
-        row.insertCell(5).innerText = k.hersteller_bezahlt || '-';
-        const cell = row.insertCell(6);
-        const btnEdit = document.createElement('button');
-        btnEdit.className = 'btn btn-edit'; btnEdit.innerText = 'Bearbeiten';
-        btnEdit.onclick = () => editKaufvertrag(i);
-        cell.appendChild(btnEdit);
-        sumVerbindlichkeiten += a.ek;
+        if (a.kommission_herkunft) {
+          const row = verbindlichkeitenTable.insertRow();
+          row.insertCell(0).innerText = k.kaufvertragsnummer;
+          row.insertCell(1).innerText = a.artikelnummer;
+          row.insertCell(2).innerText = a.name;
+          row.insertCell(3).innerText = a.auftragsnummer || '-';
+          row.insertCell(4).innerText = a.ek.toFixed(2);
+          row.insertCell(5).innerText = k.hersteller_bezahlt || '-';
+          sumVerbindlichkeiten += a.ek;
+        }
       });
+    }
+  });
+
+  // Aus Lager (Bezahlt leer)
+  lager.forEach(a => {
+    if (!a.bezahlt) {
+      const row = verbindlichkeitenTable.insertRow();
+      row.insertCell(0).innerText = '-'; // Kein Kaufvertrag
+      row.insertCell(1).innerText = a.artikelnummer;
+      row.insertCell(2).innerText = a.name;
+      row.insertCell(3).innerText = a.auftragsnummer || '-';
+      row.insertCell(4).innerText = a.ek.toFixed(2);
+      row.insertCell(5).innerText = a.bezahlt || '-';
+      sumVerbindlichkeiten += a.ek;
     }
   });
 
@@ -1804,6 +1863,7 @@ window.onload = () => {
 
 </body>
 </html>
+
 
 
 
