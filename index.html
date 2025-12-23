@@ -16,6 +16,9 @@
 <!-- Supabase Client -->
 <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
 
+  <!-- Signature Pad für Signatur -->
+  <script src="https://cdn.jsdelivr.net/npm/signature_pad@4.0.0/dist/signature_pad.umd.min.js"></script>
+  
 <style>
 :root {
   --primary-color: #4CAF50;
@@ -236,6 +239,22 @@ tr.complete { background-color: #e8f5e9; }
   .modal-content {
     padding: 20px;
     max-height: 85vh;
+  }
+}
+
+  #signatureModal .modal-content {
+  max-height: 90vh;
+  overflow-y: auto;
+}
+
+#signatureCanvas {
+  max-width: 100%;
+  height: auto !important;
+}
+
+@media (max-width: 768px) {
+  #signatureCanvas {
+    height: 300px !important;
   }
 }
   
@@ -497,6 +516,20 @@ tr.complete { background-color: #e8f5e9; }
 
 </div>
 
+  <!-- Signatur Modal -->
+<div id="signatureModal" class="modal">
+  <div class="modal-content" style="max-width: 90%; width: 600px; padding: 20px;">
+    <span class="close" onclick="closeSignatureModal()">&times;</span>
+    <h2>Signatur erstellen</h2>
+    <p>Zeichnen Sie mit Maus oder Finger</p>
+    <canvas id="signatureCanvas" style="border:1px solid #000; background:#fff; width:100%; height:200px; touch-action:none;"></canvas>
+    <div style="margin-top:20px; text-align:center;">
+      <button class="btn btn-delete" onclick="clearSignature()">Löschen</button>
+      <button class="btn btn-primary" onclick="saveSignature()" style="margin-left:20px;">Speichern</button>
+    </div>
+  </div>
+</div>
+  
 <script>
 // Supabase Initialisierung
 const supabaseUrl = 'https://lkwtwlqehgytdeyytgmr.supabase.co'
@@ -1275,9 +1308,13 @@ function updateArchivTabelle() {
       const btnPDF = document.createElement('button');
       btnPDF.className = 'btn btn-pdf'; btnPDF.innerText = 'Kaufvertrag PDF';
       btnPDF.onclick = () => downloadKaufvertragPDF(k);
+      const btnSign = document.createElement('button');
+      btnSign.className = 'btn btn-primary'; btnSign.innerText = 'Signieren';
+      btnSign.onclick = () => openSignatureModal(k.id);
       cell.appendChild(btnEdit);
       cell.appendChild(btnStorno);
       cell.appendChild(btnPDF);
+      cell.appendChild(btnSign); // Neuer Signieren-Button
       if (k.artikel.some(a => a.kommission_herkunft)) {
         const btnHerstellerPDF = document.createElement('button');
         btnHerstellerPDF.className = 'btn btn-pdf'; btnHerstellerPDF.innerText = 'Herstellerbestellung PDF';
@@ -1592,6 +1629,11 @@ function downloadKaufvertragPDF(k) {
     doc.text("Unterschrift Kunde:", 90, yPos);
     doc.line(90, yPos + 10, 180, yPos + 10);
 
+    // Signatur einfügen (wenn vorhanden)
+    if (k.signature) {
+      doc.addImage(k.signature, 'PNG', 90, yPos + 20, 80, 30); // x=90, y=unter der Linie, Breite 80mm, Höhe 30mm
+    }
+
     // AGB auf neuer Seite
     doc.addPage();
 
@@ -1891,6 +1933,66 @@ function downloadPreisschildPDF(a) {
   img.src = logoUrl;
 }
 
+  // Signatur-Funktionen
+let signaturePad = null;
+let currentArchivId = null;
+
+function openSignatureModal(archivId) {
+  currentArchivId = archivId;
+  document.getElementById('signatureModal').style.display = 'flex';
+
+  const canvas = document.getElementById('signatureCanvas');
+  // Canvas responsive machen
+  canvas.width = canvas.offsetWidth;
+  canvas.height = canvas.offsetHeight || 200;
+
+  if (signaturePad) signaturePad.off(); // Alte Instanz entfernen
+  signaturePad = new SignaturePad(canvas, {
+    backgroundColor: 'rgb(255,255,255)',
+    penColor: 'rgb(0, 0, 0)'
+  });
+
+  // Bestehende Signatur laden (falls vorhanden)
+  const k = archiv.find(item => item.id === archivId);
+  if (k && k.signature) {
+    signaturePad.fromDataURL(k.signature);
+  }
+}
+
+function closeSignatureModal() {
+  document.getElementById('signatureModal').style.display = 'none';
+  if (signaturePad) {
+    signaturePad.clear();
+    signaturePad.off();
+  }
+}
+
+function clearSignature() {
+  if (signaturePad) signaturePad.clear();
+}
+
+async function saveSignature() {
+  if (!signaturePad || signaturePad.isEmpty()) {
+    alert("Bitte eine Signatur zeichnen!");
+    return;
+  }
+
+  const dataUrl = signaturePad.toDataURL('image/png');
+
+  const { error } = await supabaseClient
+    .from('archiv')
+    .update({ signature: dataUrl })
+    .eq('id', currentArchivId);
+
+  if (error) {
+    alert('Fehler beim Speichern der Signatur: ' + error.message);
+  } else {
+    alert('Signatur gespeichert!');
+    closeSignatureModal();
+    await loadArchiv(); // Aktualisieren für PDF
+  }
+}
+  
 // Init beim Laden
 window.onload = () => {
   supabaseClient.auth.getSession().then(({ data: { session } }) => {
@@ -1905,6 +2007,7 @@ window.onload = () => {
 
 </body>
 </html>
+
 
 
 
