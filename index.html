@@ -382,7 +382,7 @@ tr.complete { background-color: #e8f5e9; }
       <label><input type="checkbox" id="addArtikelInAusstellung"> In Ausstellung</label>
       <label for="addArtikelBezahlt">Bezahlt (Datum)</label>
       <input id="addArtikelBezahlt" type="date">
-      <button onclick="artikelHinzufuegenFromModal()">Hinzufügen</button>
+      <button class="btn btn-primary" onclick="artikelHinzufuegenFromModal()">Hinzufügen</button>
     </div>
   </div>
 
@@ -1139,9 +1139,51 @@ function updateArchivTabelle() {
       const btnDel = document.createElement('button');
       btnDel.className = 'btn btn-delete'; btnDel.innerText = 'Löschen';
       btnDel.onclick = async () => {
-        const { error } = await supabaseClient.from('archiv').delete().eq('id', k.id);
-        if (error) alert('Fehler: ' + error.message);
-        else await loadArchiv();
+        if (!confirm('Kaufvertrag wirklich löschen? Die Artikel werden zurück ins Lager gelegt.')) return;
+
+        // archiv_artikel löschen
+        const { error: artikelError } = await supabaseClient.from('archiv_artikel').delete().eq('archiv_id', k.id);
+        if (artikelError) {
+          alert('Fehler beim Löschen der Artikel: ' + artikelError.message);
+          return;
+        }
+
+        // archiv-Eintrag löschen
+        const { error: archivError } = await supabaseClient.from('archiv').delete().eq('id', k.id);
+        if (archivError) {
+          alert('Fehler beim Löschen des Kaufvertrags: ' + archivError.message);
+          return;
+        }
+
+        // Artikel zurück ins Lager legen
+        k.artikel.forEach(a => {
+          const exist = lager.find(l => l.artikelnummer === a.artikelnummer);
+          if (exist) {
+            // Menge erhöhen
+            supabaseClient.from('lager').update({ menge: exist.menge + 1 }).eq('id', exist.id);
+          } else {
+            // Neu anlegen
+            const newLagerArtikel = {
+              artikelnummer: a.artikelnummer,
+              name: a.name,
+              beschreibung: a.beschreibung,
+              auftragsnummer: a.auftragsnummer || '',
+              wareneingang: a.wareneingang || null,
+              herkunft_l: a.herkunft_l || false,
+              herkunft_b: a.herkunft_b || false,
+              ek: a.ek,
+              vk: a.vk,
+              menge: 1,
+              steuer: a.steuer,
+              in_ausstellung: a.in_ausstellung || false,
+              bezahlt: a.bezahlt || null
+            };
+            supabaseClient.from('lager').insert([newLagerArtikel]);
+          }
+        });
+
+        await loadArchiv();
+        await loadLager(); // Lager + Kaufvertrag-Reiter aktualisieren
       };
       const btnPDF = document.createElement('button');
       btnPDF.className = 'btn btn-pdf'; btnPDF.innerText = 'Kaufvertrag PDF';
@@ -1158,7 +1200,7 @@ function updateArchivTabelle() {
     }
   });
 }
-
+  
 function isArchivComplete(k) {
   return k.ausgeliefert && k.abgerechnet && k.hersteller_bezahlt;
 }
@@ -1762,6 +1804,7 @@ window.onload = () => {
 
 </body>
 </html>
+
 
 
 
