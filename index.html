@@ -252,6 +252,10 @@ tr.complete { background-color: #e8f5e9; }
   height: auto !important;
 }
 
+  #signatureCanvas {
+  touch-action: none; /* Verhindert Zoom/Scroll beim Zeichnen */
+}
+
 @media (max-width: 768px) {
   #signatureCanvas {
     height: 300px !important;
@@ -522,7 +526,7 @@ tr.complete { background-color: #e8f5e9; }
     <span class="close" onclick="closeSignatureModal()">&times;</span>
     <h2>Signatur erstellen</h2>
     <p>Zeichnen Sie mit Maus oder Finger</p>
-    <canvas id="signatureCanvas" style="border:1px solid #000; background:#fff; width:100%; height:200px; touch-action:none;"></canvas>
+    <canvas id="signatureCanvas" style="border:1px solid #000; background:#fff; width:100%; height:300px; touch-action:none;"></canvas>
     <div style="margin-top:20px; text-align:center;">
       <button class="btn btn-delete" onclick="clearSignature()">Löschen</button>
       <button class="btn" style="background-color:#4CAF50; color:white; margin-left:20px;" onclick="saveSignature()">Speichern</button>
@@ -1878,8 +1882,12 @@ function openSignatureModal(archivId) {
 
   if (signaturePad) signaturePad.off(); // Alte Instanz entfernen
   signaturePad = new SignaturePad(canvas, {
-    backgroundColor: 'rgb(255,255,255)',
+    backgroundColor: 'rgba(255,255,255,0)',
     penColor: 'rgb(0, 0, 0)'
+     minWidth: 1.5, // Dünnere Linie für Pencil
+    maxWidth: 3.5, // Natürlicher
+    throttle: 16, // Glatter (weniger Ruckeln)
+    dotSize: 1.5
   });
 
   // Bestehende Signatur laden (falls vorhanden)
@@ -1937,6 +1945,7 @@ window.onload = () => {
 
 </body>
 </html>
+
 
 
 
