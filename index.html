@@ -619,14 +619,23 @@ async function artikelHinzufuegenFromModal() {
     return;
   }
 
+    const herkunft_b = document.getElementById('addArtikelKommission').checked;
+  const wareneingang = document.getElementById('addArtikelWareneingang').value || null;
+
+  // Wareneingang nur verlangen, wenn NICHT Kommission/Bestellung
+  if (!herkunft_b && !wareneingang) {
+    alert('Wareneingang-Datum ist erforderlich, wenn Herkunft nicht "B (Kommissions Bestellung)" ist.');
+    return;
+  }
+
   const newArtikel = {
     artikelnummer: artikelnummerInput,
     name: document.getElementById('addArtikelName').value.trim(),
     beschreibung: document.getElementById('addArtikelBeschreibung').value.trim(),
     auftragsnummer: document.getElementById('addArtikelAuftragsNummer').value.trim(),
-    wareneingang: document.getElementById('addArtikelWareneingang').value || null,
+    wareneingang: wareneingang,
     herkunft_l: document.getElementById('addArtikelLager').checked,
-    herkunft_b: document.getElementById('addArtikelKommission').checked,
+    herkunft_b: herkunft_b,
     ek: parseFloat(document.getElementById('addArtikelEK').value),
     vk: parseFloat(document.getElementById('addArtikelVK').value),
     menge: parseInt(document.getElementById('addArtikelMenge').value),
@@ -688,6 +697,14 @@ async function artikelAenderungSpeichern() {
     return;
   }
 
+  const herkunft_b = document.getElementById('editArtikelKommission').checked;
+  const wareneingang = document.getElementById('editArtikelWareneingang').value || null;
+
+  if (!herkunft_b && !wareneingang) {
+    alert('Wareneingang-Datum ist erforderlich, wenn Herkunft nicht "B (Kommissions Bestellung)" ist.');
+    return;
+  }
+  
   const updatedArtikel = {
     artikelnummer: updatedArtikelnummer,
     name: document.getElementById('editArtikelName').value.trim(),
@@ -877,13 +894,20 @@ function toggleUeberweisungDatum() {
 }
 
 async function saveKaufvertrag() {
-  if (aktuelleKaufvertragArtikel.length === 0) { alert("Keine Artikel im Kaufvertrag!"); return; }
+  if (aktuelleKaufvertragArtikel.length === 0) { 
+    alert("Keine Artikel im Kaufvertrag!"); 
+    return; 
+  }
   const vorname = document.getElementById('kundeVorname').value.trim();
   const nachname = document.getElementById('kundeNachname').value.trim();
-  if (!vorname || !nachname) { alert("Bitte Kundendaten ausfüllen!"); return; }
+  if (!vorname || !nachname) { 
+    alert("Bitte Kundendaten ausfüllen!"); 
+    return; 
+  }
 
   const kunde = {
-    vorname, nachname,
+    vorname, 
+    nachname,
     strasse: document.getElementById('kundeStrasse').value,
     plz: document.getElementById('kundePLZ').value,
     ruf: document.getElementById('kundeRuf').value,
@@ -894,7 +918,31 @@ async function saveKaufvertrag() {
   };
 
   const jahr = new Date().getFullYear();
-  const kaufvertragsnummer = `CD${jahr}${String(archiv.length + 1).padStart(3, '0')}`;
+
+  // Sichere Generierung der nächsten freien Kaufvertragsnummer
+  let laufendeNr = 1;
+  let kaufvertragsnummer = `CD${jahr}${String(laufendeNr).padStart(3, '0')}`;
+  let exists = true;
+
+  while (exists) {
+    const { data: checkData, error: checkError } = await supabaseClient
+      .from('archiv')
+      .select('id')
+      .eq('kaufvertragsnummer', kaufvertragsnummer)
+      .maybeSingle();
+
+    if (checkError && checkError.code !== 'PGRST116') { // PGRST116 = kein Ergebnis
+      alert('Fehler beim Prüfen der Kaufvertragsnummer: ' + checkError.message);
+      return;
+    }
+
+    if (checkData) {
+      laufendeNr++;
+      kaufvertragsnummer = `CD${jahr}${String(laufendeNr).padStart(3, '0')}`;
+    } else {
+      exists = false;
+    }
+  }
 
   let gesamt = 0;
   aktuelleKaufvertragArtikel.forEach(a => gesamt += a.vk);
@@ -1714,6 +1762,7 @@ window.onload = () => {
 
 </body>
 </html>
+
 
 
 
