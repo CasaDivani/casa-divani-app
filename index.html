@@ -1218,29 +1218,12 @@ function updateArchivTabelle() {
       const btnStorno = document.createElement('button');
       btnStorno.className = 'btn btn-delete'; btnStorno.innerText = 'Stornieren';
       btnStorno.onclick = async () => {
-        if (!confirm('Kaufvertrag stornieren? Der Vertrag wird als STORNIERT markiert und Artikel zurück ins Lager gebucht.')) return;
+        if (!confirm('Kaufvertrag stornieren? Die Zeile wird grau, Artikel zurück ins Lager und Bearbeiten öffnet sich.')) return;
 
-        // String-Felder auf "-" setzen (NOT NULL umgehen)
-        const updated = {
-          kunde_vorname: 'STORNIERT',
-          kunde_nachname: '-',
-          kunde_strasse: '-',
-          kunde_plz: '-',
-          kunde_ruf: '-',
-          kunde_email: '-',
-          ausgeliefert: null,
-          abgerechnet: null,
-          hersteller_bezahlt: null,
-          auftragsnummer: '-',
-          restbetrag: 0,
-          anzahlung: k.gesamtbetrag
-        };
-
-        const { error: updateError } = await supabaseClient.from('archiv').update(updated).eq('id', k.id);
-        if (updateError) {
-          alert('Fehler beim Stornieren: ' + updateError.message);
-          return;
-        }
+        // Zeile visuell grau machen
+        row.style.backgroundColor = '#f0f0f0';
+        row.style.color = '#999';
+        row.style.textDecoration = 'line-through';
 
         // archiv_artikel löschen (Artikelnummern freigeben)
         const { error: artikelError } = await supabaseClient.from('archiv_artikel').delete().eq('archiv_id', k.id);
@@ -1285,6 +1268,9 @@ function updateArchivTabelle() {
         await loadArchiv();
         await loadLager();
         await updateForderungenVerbindlichkeiten();
+
+        // Bearbeiten-Modal öffnen
+        editKaufvertrag(i);
       };
       const btnPDF = document.createElement('button');
       btnPDF.className = 'btn btn-pdf'; btnPDF.innerText = 'Kaufvertrag PDF';
@@ -1919,6 +1905,7 @@ window.onload = () => {
 
 </body>
 </html>
+
 
 
 
