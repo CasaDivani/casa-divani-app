@@ -1223,15 +1223,15 @@ function updateArchivTabelle() {
         // Kundenname auf STORNIERT setzen und Felder leeren (String-Felder auf '' statt null)
         const updated = {
           kunde_vorname: 'STORNIERT',
-          kunde_nachname: '',
-          kunde_strasse: '',
-          kunde_plz: '',
-          kunde_ruf: '',
-          kunde_email: '',
+          kunde_nachname: 'STORNIERT',
+          kunde_strasse: 'STORNIERT',
+          kunde_plz: 'STORNIERT',
+          kunde_ruf: 'STORNIERT',
+          kunde_email: 'STORNIERT',
           ausgeliefert: null,
           abgerechnet: null,
           hersteller_bezahlt: null,
-          auftragsnummer: '',
+          auftragsnummer: 'STORNIERT',
           restbetrag: 0,
           anzahlung: k.gesamtbetrag
         };
@@ -1919,6 +1919,7 @@ window.onload = () => {
 
 </body>
 </html>
+
 
 
 
