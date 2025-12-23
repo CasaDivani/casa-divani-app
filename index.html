@@ -1234,13 +1234,12 @@ function updateArchivTabelle() {
             .eq('artikelnummer', a.artikelnummer)
             .maybeSingle();
 
-          if (findError && findError.code !== 'PGRST116') { // PGRST116 = kein Ergebnis
+          if (findError && findError.code !== 'PGRST116') {
             console.error('Fehler beim Suchen im Lager: ' + findError.message);
             continue;
           }
 
           if (existData) {
-            // Menge +1
             const { error: updateError } = await supabaseClient
               .from('lager')
               .update({ menge: existData.menge + 1 })
@@ -1248,7 +1247,6 @@ function updateArchivTabelle() {
 
             if (updateError) console.error('Fehler beim Aktualisieren der Menge: ' + updateError.message);
           } else {
-            // Neu anlegen
             const newLagerArtikel = {
               artikelnummer: a.artikelnummer,
               name: a.name,
@@ -1907,6 +1905,7 @@ window.onload = () => {
 
 </body>
 </html>
+
 
 
 
