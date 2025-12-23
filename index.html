@@ -1506,7 +1506,7 @@ function downloadSteuerPDF() {
   doc.save('Steuerbericht.pdf');
 }
 
-// Preisschild PDF (DIN A6) – Listenpreis durchgestrichen (schräg)
+// Preisschild PDF (DIN A6) – Listenpreis durchgestrichen (schräg, sauber durch Mitte)
 function downloadPreisschildPDF(a) {
   const { jsPDF } = window.jspdf;
   const doc = new jsPDF({
@@ -1550,12 +1550,12 @@ function downloadPreisschildPDF(a) {
     const listenText = `Listenpreis: ${listenpreisBrutto} €`;
     doc.text(listenText, 52.5, listenY, { align: 'center' });
 
-    // Schräge Durchstreich-Linie (von links unten nach rechts oben)
+    // Schräge Durchstreich-Linie (höher angesetzt – perfekt durch Mitte)
     const textWidth = doc.getTextWidth(listenText);
     const lineStartX = 52.5 - textWidth / 2;
     const lineEndX = 52.5 + textWidth / 2;
-    doc.setLineWidth(0.5);
-    doc.line(lineStartX, listenY + 3, lineEndX, listenY - 3); // Schräg durch den Text
+    doc.setLineWidth(0.6);
+    doc.line(lineStartX, listenY - 1, lineEndX, listenY + 1); // Schräg, höher angesetzt
 
     // "Sonderpreis bei Abholung" + Rabatt %
     doc.setTextColor(0, 0, 0); // Schwarz zurück
@@ -1577,7 +1577,7 @@ function downloadPreisschildPDF(a) {
 
   img.onerror = function () {
     alert("Logo konnte nicht geladen werden – Preisschild ohne Logo.");
-    // Fallback ohne Logo
+    // Fallback ohne Logo (gleiches Layout)
     doc.setFontSize(14);
     doc.setFont(undefined, 'bold');
     doc.text("Polstergarnitur", 10, 20);
@@ -1597,8 +1597,8 @@ function downloadPreisschildPDF(a) {
     const listenText = `Listenpreis: ${listenpreisBrutto} €`;
     doc.text(listenText, 52.5, listenY, { align: 'center' });
     const textWidth = doc.getTextWidth(listenText);
-    doc.setLineWidth(0.5);
-    doc.line(52.5 - textWidth / 2, listenY + 3, 52.5 + textWidth / 2, listenY - 3); // Schräg
+    doc.setLineWidth(0.6);
+    doc.line(52.5 - textWidth / 2, listenY - 1, 52.5 + textWidth / 2, listenY + 1); // Schräg, höher
 
     doc.setTextColor(0, 0, 0);
     doc.setFontSize(14);
@@ -1633,6 +1633,7 @@ window.onload = () => {
 
 </body>
 </html>
+
 
 
 
