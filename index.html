@@ -1210,28 +1210,45 @@ function updateArchivTabelle() {
       const btnDel = document.createElement('button');
       btnDel.className = 'btn btn-delete'; btnDel.innerText = 'Löschen';
       btnDel.onclick = async () => {
-        if (!confirm('Kaufvertrag wirklich löschen? Die Artikel werden zurück ins Lager gelegt.')) return;
+        if (!confirm('Kaufvertrag wirklich löschen? Die Artikel werden zurück ins Lager gebucht.')) return;
 
-        // Zuerst archiv_artikel löschen
+        // 1. archiv_artikel löschen
         const { error: artikelError } = await supabaseClient.from('archiv_artikel').delete().eq('archiv_id', k.id);
         if (artikelError) {
           alert('Fehler beim Löschen der Artikel: ' + artikelError.message);
           return;
         }
 
-        // Dann archiv-Eintrag löschen
+        // 2. archiv-Eintrag löschen
         const { error: archivError } = await supabaseClient.from('archiv').delete().eq('id', k.id);
         if (archivError) {
           alert('Fehler beim Löschen des Kaufvertrags: ' + archivError.message);
           return;
         }
 
-        // Artikel zurück ins Lager legen
-        k.artikel.forEach(a => {
-          const exist = lager.find(l => l.artikelnummer === a.artikelnummer);
-          if (exist) {
-            supabaseClient.from('lager').update({ menge: exist.menge + 1 }).eq('id', exist.id);
+        // 3. Artikel sequentiell zurück ins Lager buchen
+        for (const a of k.artikel) {
+          const { data: existData, error: findError } = await supabaseClient
+            .from('lager')
+            .select('id, menge')
+            .eq('artikelnummer', a.artikelnummer)
+            .maybeSingle();
+
+          if (findError && findError.code !== 'PGRST116') { // PGRST116 = kein Ergebnis
+            console.error('Fehler beim Suchen im Lager: ' + findError.message);
+            continue;
+          }
+
+          if (existData) {
+            // Menge +1
+            const { error: updateError } = await supabaseClient
+              .from('lager')
+              .update({ menge: existData.menge + 1 })
+              .eq('id', existData.id);
+
+            if (updateError) console.error('Fehler beim Aktualisieren der Menge: ' + updateError.message);
           } else {
+            // Neu anlegen
             const newLagerArtikel = {
               artikelnummer: a.artikelnummer,
               name: a.name,
@@ -1247,10 +1264,12 @@ function updateArchivTabelle() {
               in_ausstellung: a.in_ausstellung || false,
               bezahlt: a.bezahlt || null
             };
-            supabaseClient.from('lager').insert([newLagerArtikel]);
+            const { error: insertError } = await supabaseClient.from('lager').insert([newLagerArtikel]);
+            if (insertError) console.error('Fehler beim Anlegen im Lager: ' + insertError.message);
           }
-        });
+        }
 
+        // 4. Alles neu laden
         await loadArchiv();
         await loadLager();
         await updateForderungenVerbindlichkeiten();
@@ -1888,6 +1907,7 @@ window.onload = () => {
 
 </body>
 </html>
+
 
 
 
