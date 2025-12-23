@@ -969,16 +969,56 @@ async function artikelInKaufvertragAenderungSpeichern() {
 async function kaufvertragAenderungSpeichern() {
   if (aktuellBearbeitenArchivIndex === null) return;
   const k = archiv[aktuellBearbeitenArchivIndex];
+
+  const abgerechnet = document.getElementById('editAbgerechnet').value || null;
+  const hersteller_bezahlt = document.getElementById('editHerstellerBezahlt').value || null;
+  const ausgeliefert = document.getElementById('editAusgeliefert').value || null;
+  const auftragsnummer = document.getElementById('editAuftragsNummer').value.trim() || null;
+
   const updated = {
-    ausgeliefert: document.getElementById('editAusgeliefert').value || null,
-    abgerechnet: document.getElementById('editAbgerechnet').value || null,
-    hersteller_bezahlt: document.getElementById('editHerstellerBezahlt').value || null,
-    auftragsnummer: document.getElementById('editAuftragsNummer').value.trim()
+    ausgeliefert,
+    abgerechnet,
+    hersteller_bezahlt,
+    auftragsnummer
   };
 
+  // 1. Wenn abgerechnet gefüllt → Restbetrag auf 0 setzen
+  if (abgerechnet && k.restbetrag > 0) {
+    updated.restbetrag = 0;
+    updated.anzahlung = k.gesamtbetrag; // Anzahlung = Gesamtbetrag (vollständig bezahlt)
+  }
+
+  // Speichern im Archiv
   const { error } = await supabaseClient.from('archiv').update(updated).eq('id', k.id);
-  if (error) alert('Fehler: ' + error.message);
-  else await loadArchiv();
+  if (error) {
+    alert('Fehler beim Speichern: ' + error.message);
+    return;
+  }
+
+  // 2. Wenn Herstellerverbindlichkeiten bezahlt → Artikel "Bezahlt" aktualisieren
+  if (hersteller_bezahlt) {
+    // Alle Artikelnummern aus diesem Kaufvertrag holen
+    const { data: artikelData, error: artikelError } = await supabaseClient
+      .from('archiv_artikel')
+      .select('artikelnummer')
+      .eq('archiv_id', k.id);
+
+    if (artikelError) {
+      console.error('Fehler beim Laden der Artikelnummern: ' + artikelError.message);
+    } else if (artikelData && artikelData.length > 0) {
+      const artikelnummern = artikelData.map(a => a.artikelnummer);
+
+      // Lager-Artikel mit diesen Nummern finden und "bezahlt" setzen
+      const { error: lagerError } = await supabaseClient
+        .from('lager')
+        .update({ bezahlt: hersteller_bezahlt })
+        .in('artikelnummer', artikelnummern);
+
+      if (lagerError) console.error('Fehler beim Aktualisieren der Lager-Artikel: ' + lagerError.message);
+    }
+  }
+
+  await loadArchiv(); // Alles neu laden (Archiv, Forderungen, Lager)
   aktuellBearbeitenArchivIndex = null;
   document.getElementById('kaufvertragEditModal').style.display = 'none';
 }
@@ -1633,6 +1673,7 @@ window.onload = () => {
 
 </body>
 </html>
+
 
 
 
