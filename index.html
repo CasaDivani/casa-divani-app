@@ -781,14 +781,24 @@ function updateVerkaufTabelle() {
 }
 
 function addToKaufvertrag(index) {
-  const artikel = lager[index];
-  aktuelleKaufvertragArtikel.push({ ...artikel });
-  const updatedMenge = artikel.menge - 1;
-  supabaseClient.from('lager').update({ menge: updatedMenge }).eq('id', artikel.id);
-  if (updatedMenge <= 0) {
-    supabaseClient.from('lager').delete().eq('id', artikel.id);
+  const artikel = { ...lager[index] }; // Kopie des Artikels
+  aktuelleKaufvertragArtikel.push(artikel);
+
+  // Menge im Lager reduzieren
+  const neueMenge = artikel.menge - 1;
+
+  if (neueMenge > 0) {
+    // Nur Menge aktualisieren
+    supabaseClient.from('lager').update({ menge: neueMenge }).eq('id', artikel.id).then(() => {
+      loadLager(); // Neu laden für korrekte Anzeige
+    });
+  } else {
+    // Artikel komplett löschen (Menge = 0)
+    supabaseClient.from('lager').delete().eq('id', artikel.id).then(() => {
+      loadLager();
+    });
   }
-  filterLager();
+
   updateVerkaufTabelle();
   updateAktuelleKaufvertragTabelle();
 }
@@ -814,16 +824,27 @@ function updateAktuelleKaufvertragTabelle() {
 }
 
 function removeFromKaufvertrag(index) {
-  const a = aktuelleKaufvertragArtikel[index];
-  const exist = lager.find(x => x.artikelnummer === a.artikelnummer);
-  if (exist) {
-    const updatedMenge = exist.menge + 1;
-    supabaseClient.from('lager').update({ menge: updatedMenge }).eq('id', exist.id);
+  const artikel = aktuelleKaufvertragArtikel[index];
+
+  // Prüfen, ob Artikel bereits im Lager existiert
+  const existierender = lager.find(a => a.artikelnummer === artikel.artikelnummer);
+
+  if (existierender) {
+    // Menge erhöhen
+    const neueMenge = existierender.menge + 1;
+    supabaseClient.from('lager').update({ menge: neueMenge }).eq('id', existierender.id).then(() => {
+      loadLager();
+    });
   } else {
-    supabaseClient.from('lager').insert([{ ...a, menge: 1 }]);
+    // Artikel neu anlegen (Menge = 1)
+    const neuerArtikel = { ...artikel, menge: 1 };
+    delete neuerArtikel.id; // ID nicht mitübernehmen
+    supabaseClient.from('lager').insert([neuerArtikel]).then(() => {
+      loadLager();
+    });
   }
+
   aktuelleKaufvertragArtikel.splice(index, 1);
-  filterLager();
   updateVerkaufTabelle();
   updateAktuelleKaufvertragTabelle();
 }
@@ -1673,6 +1694,7 @@ window.onload = () => {
 
 </body>
 </html>
+
 
 
 
