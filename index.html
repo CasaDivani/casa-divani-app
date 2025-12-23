@@ -1220,18 +1220,18 @@ function updateArchivTabelle() {
       btnStorno.onclick = async () => {
         if (!confirm('Kaufvertrag stornieren? Der Vertrag wird als STORNIERT markiert und Artikel zurück ins Lager gebucht.')) return;
 
-        // Kundenname auf STORNIERT setzen und Felder leeren (String-Felder auf '' statt null)
+        // String-Felder auf "-" setzen (NOT NULL umgehen)
         const updated = {
           kunde_vorname: 'STORNIERT',
-          kunde_nachname: 'STORNIERT',
-          kunde_strasse: 'STORNIERT',
-          kunde_plz: 'STORNIERT',
-          kunde_ruf: 'STORNIERT',
-          kunde_email: 'STORNIERT',
+          kunde_nachname: '-',
+          kunde_strasse: '-',
+          kunde_plz: '-',
+          kunde_ruf: '-',
+          kunde_email: '-',
           ausgeliefert: null,
           abgerechnet: null,
           hersteller_bezahlt: null,
-          auftragsnummer: 'STORNIERT',
+          auftragsnummer: '-',
           restbetrag: 0,
           anzahlung: k.gesamtbetrag
         };
@@ -1919,6 +1919,7 @@ window.onload = () => {
 
 </body>
 </html>
+
 
 
 
