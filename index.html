@@ -1617,16 +1617,13 @@ function downloadKaufvertragPDF(k) {
     doc.text("Hiermit werden die allgemeinen Geschäftsbedingungen akzeptiert", 20, yPos);
     yPos += 16;
 
-    doc.text("Hiermit willige ich ein, aktuelle Newsletter und Werbung zu erhalten", 20, yPos);
-    yPos += 30;
-
     doc.text(`Datum: ${today}`, 20, yPos);
     doc.text("Unterschrift Kunde:", 90, yPos);
     doc.line(90, yPos + 10, 180, yPos + 10);
 
     // Signatur einfügen
     if (k.signature) {
-      doc.addImage(k.signature, 'PNG', 90, yPos + 20, 80, 30);
+      doc.addImage(k.signature, 'PNG', 90, yPos - 20, 80, 30);
     }
 
     // AGB auf neuer Seite
@@ -1682,7 +1679,7 @@ function downloadKaufvertragPDF(k) {
 
     // Signatur auch auf AGB-Seite einfügen
     if (k.signature) {
-      doc.addImage(k.signature, 'PNG', 90, yPos + 20, 80, 30);
+      doc.addImage(k.signature, 'PNG', 90, yPos - 20, 80, 30);
     }
 
     doc.save(`Kaufvertrag_${k.kaufvertragsnummer}.pdf`);
@@ -1940,6 +1937,7 @@ window.onload = () => {
 
 </body>
 </html>
+
 
 
 
