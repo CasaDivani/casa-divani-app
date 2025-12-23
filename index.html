@@ -1506,13 +1506,13 @@ function downloadSteuerPDF() {
   doc.save('Steuerbericht.pdf');
 }
 
-// Preisschild PDF
+// Preisschild PDF (DIN A6) – mit Listenpreis und Rabatt
 function downloadPreisschildPDF(a) {
   const { jsPDF } = window.jspdf;
   const doc = new jsPDF({
     orientation: 'portrait',
     unit: 'mm',
-    format: [105, 148]
+    format: [105, 148] // DIN A6 Hochformat
   });
 
   const logoUrl = "https://i.imgur.com/o8Lowx7.png";
@@ -1520,23 +1520,50 @@ function downloadPreisschildPDF(a) {
   img.crossOrigin = "Anonymous";
 
   img.onload = function () {
+    // Logo rechts oben dezent
     doc.addImage(img, 'PNG', 105 - 25, 5, 20, 20);
 
+    // Überschrift links oben
     doc.setFontSize(14);
     doc.setFont(undefined, 'bold');
     doc.text("Polstergarnitur", 10, 20);
 
+    // Artikelname
     doc.setFontSize(18);
     doc.text(a.name, 10, 30);
 
+    // Beschreibung
     doc.setFontSize(12);
     doc.setFont(undefined, 'normal');
     const beschreibungLines = doc.splitTextToSize(a.beschreibung || 'Keine Beschreibung', 85);
     doc.text(beschreibungLines, 10, 45);
 
+    // Listenpreis berechnen (EK brutto / 1.19 * 4)
+    const listenpreisNetto = a.ek / 1.19;
+    const listenpreisBrutto = listenpreisNetto * 4;
+    const rabattProzent = ((listenpreisBrutto - a.vk) / listenpreisBrutto * 100).toFixed(0);
+
+    // Listenpreis klein, durchgestrichen (leicht transparent)
+    const listenY = 95;
+    doc.setFontSize(14);
+    doc.setTextColor(100, 100, 100); // Grau (leicht transparent)
+    doc.text(`Listenpreis: ${listenpreisBrutto.toFixed(2)} €`, 52.5, listenY, { align: 'center' });
+
+    // Durchstreich-Linie
+    const textWidth = doc.getTextWidth(`Listenpreis: ${listenpreisBrutto.toFixed(2)} €`);
+    doc.setLineWidth(0.5);
+    doc.line(52.5 - textWidth / 2, listenY + 1, 52.5 + textWidth / 2, listenY + 1);
+
+    // "Sonderpreis bei Abholung" + Rabatt %
+    doc.setTextColor(0, 0, 0); // Schwarz zurück
     doc.setFontSize(14);
     doc.text("Sonderpreis bei Abholung", 52.5, 110, { align: 'center' });
+    doc.setFontSize(12);
+    doc.setTextColor(200, 0, 0); // Rot für Rabatt
+    doc.text(`-${rabattProzent}%`, 52.5, 118, { align: 'center' });
 
+    // Sonderpreis groß
+    doc.setTextColor(0, 0, 0);
     doc.setFontSize(32);
     doc.setFont(undefined, 'bold');
     const preis = a.vk % 1 === 0 ? Math.round(a.vk) : a.vk.toFixed(2);
@@ -1547,6 +1574,7 @@ function downloadPreisschildPDF(a) {
 
   img.onerror = function () {
     alert("Logo konnte nicht geladen werden – Preisschild ohne Logo.");
+    // Fallback ohne Logo (gleiches Layout)
     doc.setFontSize(14);
     doc.setFont(undefined, 'bold');
     doc.text("Polstergarnitur", 10, 20);
@@ -1555,12 +1583,32 @@ function downloadPreisschildPDF(a) {
     doc.setFontSize(12);
     const beschreibungLines = doc.splitTextToSize(a.beschreibung || 'Keine Beschreibung', 85);
     doc.text(beschreibungLines, 10, 45);
+
+    const listenpreisNetto = a.ek / 1.19;
+    const listenpreisBrutto = listenpreisNetto * 4;
+    const rabattProzent = ((listenpreisBrutto - a.vk) / listenpreisBrutto * 100).toFixed(0);
+
+    const listenY = 95;
+    doc.setFontSize(14);
+    doc.setTextColor(100, 100, 100);
+    doc.text(`Listenpreis: ${listenpreisBrutto.toFixed(2)} €`, 52.5, listenY, { align: 'center' });
+    const textWidth = doc.getTextWidth(`Listenpreis: ${listenpreisBrutto.toFixed(2)} €`);
+    doc.setLineWidth(0.5);
+    doc.line(52.5 - textWidth / 2, listenY + 1, 52.5 + textWidth / 2, listenY + 1);
+
+    doc.setTextColor(0, 0, 0);
     doc.setFontSize(14);
     doc.text("Sonderpreis bei Abholung", 52.5, 110, { align: 'center' });
+    doc.setFontSize(12);
+    doc.setTextColor(200, 0, 0);
+    doc.text(`-${rabattProzent}%`, 52.5, 118, { align: 'center' });
+
+    doc.setTextColor(0, 0, 0);
     doc.setFontSize(32);
     doc.setFont(undefined, 'bold');
     const preis = a.vk % 1 === 0 ? Math.round(a.vk) : a.vk.toFixed(2);
     doc.text(preis + ' €', 52.5, 130, { align: 'center' });
+
     doc.save(`Preisschild_${a.artikelnummer}.pdf`);
   };
 
@@ -1581,6 +1629,7 @@ window.onload = () => {
 
 </body>
 </html>
+
 
 
 
