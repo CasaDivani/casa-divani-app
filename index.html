@@ -1220,18 +1220,18 @@ function updateArchivTabelle() {
       btnStorno.onclick = async () => {
         if (!confirm('Kaufvertrag stornieren? Der Vertrag wird als STORNIERT markiert und Artikel zurück ins Lager gebucht.')) return;
 
-        // Kundenname auf STORNIERT setzen und Felder leeren
+        // Kundenname auf STORNIERT setzen und Felder leeren (bigint-Felder auf 0/null)
         const updated = {
           kunde_vorname: 'STORNIERT',
-          kunde_nachname: '',
-          kunde_strasse: '',
-          kunde_plz: '',
-          kunde_ruf: '',
-          kunde_email: '',
+          kunde_nachname: null,
+          kunde_strasse: null,
+          kunde_plz: null,
+          kunde_ruf: null,
+          kunde_email: null,
           ausgeliefert: null,
           abgerechnet: null,
           hersteller_bezahlt: null,
-          auftragsnummer: '',
+          auftragsnummer: null,
           restbetrag: 0,
           anzahlung: k.gesamtbetrag
         };
@@ -1249,7 +1249,7 @@ function updateArchivTabelle() {
           return;
         }
 
-        // Artikel zurück ins Lager buchen
+        // Artikel zurück ins Lager buchen (sequentiell)
         for (const a of k.artikel) {
           const { data: existData } = await supabaseClient
             .from('lager')
@@ -1267,7 +1267,7 @@ function updateArchivTabelle() {
               artikelnummer: a.artikelnummer,
               name: a.name,
               beschreibung: a.beschreibung,
-              auftragsnummer: a.auftragsnummer || '',
+              auftragsnummer: a.auftragsnummer || null,
               wareneingang: a.wareneingang || null,
               herkunft_l: a.herkunft_l || false,
               herkunft_b: a.herkunft_b || false,
@@ -1919,6 +1919,7 @@ window.onload = () => {
 
 </body>
 </html>
+
 
 
 
