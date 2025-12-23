@@ -599,26 +599,23 @@ function closeArtikelAddModal() {
 async function artikelHinzufuegenFromModal() {
   const artikelnummerInput = document.getElementById('addArtikelNummer').value.trim().toUpperCase();
 
-  // 1. Format-Prüfung
-  const regex = /^CD\d{6}-(0[1-9]|[1-9]\d|XX)$/;
+  // Format-Prüfung: CD + 6 Ziffern + -00 bis -99 oder -XX
+  const regex = /^CD\d{6}-(\d{2}|XX)$/;
   if (!regex.test(artikelnummerInput)) {
-    alert('Ungültige Artikelnummer!\nMuss sein: CD + 6 Ziffern + -01 bis -99 oder -XX\nBeispiel: CD123456-01 oder CD123456-XX');
+    alert('Ungültige Artikelnummer!\nMuss sein: CD + 6 Ziffern + -00 bis -99 oder -XX\nBeispiel: CD100100-01 oder CD100100-XX');
     return;
   }
 
-  // 2. Duplikat-Prüfung
-  const basisnummer = artikelnummerInput.substring(0, 8);
-  const endung = artikelnummerInput.substring(8);
+  const endung = artikelnummerInput.slice(-2); // -01 oder -XX
 
+  // Duplikat-Prüfung: Komplette Nummer darf nicht doppelt (außer -XX)
   const duplikat = lager.some(a => {
-    const aBasis = a.artikelnummer.substring(0, 8);
-    const aEndung = a.artikelnummer.substring(8);
-    if (endung === '-XX') return false;
-    return aBasis === basisnummer;
+    if (endung === 'XX') return false; // -XX darf mehrmals
+    return a.artikelnummer === artikelnummerInput;
   });
 
   if (duplikat) {
-    alert('Diese Basis-Artikelnummer (ohne Endung -XX) existiert bereits!\nDu kannst nur -XX mehrmals verwenden.');
+    alert('Diese Artikelnummer existiert bereits!\nJede Nummer (außer -XX) muss einzigartig sein.');
     return;
   }
 
@@ -646,7 +643,7 @@ async function artikelHinzufuegenFromModal() {
   }
   closeArtikelAddModal();
 }
-
+  
 function editArtikel(index) {
   const a = lager[index];
   aktuellBearbeitenIndex = index;
@@ -668,8 +665,31 @@ function editArtikel(index) {
 
 async function artikelAenderungSpeichern() {
   if (aktuellBearbeitenIndex === null) return;
+  const updatedArtikelnummer = document.getElementById('editArtikelNummer').value.trim().toUpperCase();
+  const aktuellerArtikel = lager[aktuellBearbeitenIndex];
+
+  // Format-Prüfung
+  const regex = /^CD\d{6}-(\d{2}|XX)$/;
+  if (!regex.test(updatedArtikelnummer)) {
+    alert('Ungültige Artikelnummer!\nMuss sein: CD + 6 Ziffern + -00 bis -99 oder -XX');
+    return;
+  }
+
+  const endung = updatedArtikelnummer.slice(-2);
+
+  // Duplikat-Prüfung (außer beim eigenen Artikel und außer bei -XX)
+  const duplikat = lager.some(a => {
+    if (endung === 'XX') return false; // -XX darf mehrmals
+    return a.artikelnummer === updatedArtikelnummer && a.id !== aktuellerArtikel.id;
+  });
+
+  if (duplikat) {
+    alert('Diese Artikelnummer existiert bereits!\nJede Nummer (außer -XX) muss einzigartig sein.');
+    return;
+  }
+
   const updatedArtikel = {
-    artikelnummer: document.getElementById('editArtikelNummer').value.trim(),
+    artikelnummer: updatedArtikelnummer,
     name: document.getElementById('editArtikelName').value.trim(),
     beschreibung: document.getElementById('editArtikelBeschreibung').value.trim(),
     auftragsnummer: document.getElementById('editArtikelAuftragsNummer').value.trim(),
@@ -684,7 +704,7 @@ async function artikelAenderungSpeichern() {
     bezahlt: document.getElementById('editArtikelBezahlt').value || null
   };
 
-  const { error } = await supabaseClient.from('lager').update(updatedArtikel).eq('id', lager[aktuellBearbeitenIndex].id);
+  const { error } = await supabaseClient.from('lager').update(updatedArtikel).eq('id', aktuellerArtikel.id);
   if (error) alert('Fehler: ' + error.message);
   else await loadLager();
   aktuellBearbeitenIndex = null;
@@ -1694,6 +1714,7 @@ window.onload = () => {
 
 </body>
 </html>
+
 
 
 
