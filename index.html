@@ -1627,7 +1627,7 @@ function downloadKaufvertragPDF(k) {
 
     // Signatur einfügen
     if (k.signature) {
-      doc.addImage(k.signature, 'PNG', 90, yPos - 20, 80, 30);
+      doc.addImage(k.signature, 'PNG', 90, yPos - 10, 80, 30);
     }
 
     // AGB auf neuer Seite
@@ -1683,7 +1683,7 @@ function downloadKaufvertragPDF(k) {
 
     // Signatur auch auf AGB-Seite einfügen
     if (k.signature) {
-      doc.addImage(k.signature, 'PNG', 90, yPos - 20, 80, 30);
+      doc.addImage(k.signature, 'PNG', 90, yPos - 10, 80, 30);
     }
 
     doc.save(`Kaufvertrag_${k.kaufvertragsnummer}.pdf`);
@@ -1885,7 +1885,7 @@ function openSignatureModal(archivId) {
     backgroundColor: 'rgba(255,255,255,0)',
     penColor: 'rgb(0, 0, 0)',
      minWidth: 1.5, // Dünnere Linie für Pencil
-    maxWidth: 3.5, // Natürlicher
+    maxWidth: 2.5, // Natürlicher
     throttle: 16, // Glatter (weniger Ruckeln)
     dotSize: 1.5
   });
@@ -1945,6 +1945,7 @@ window.onload = () => {
 
 </body>
 </html>
+
 
 
 
