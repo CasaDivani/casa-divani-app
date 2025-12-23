@@ -1883,7 +1883,7 @@ function openSignatureModal(archivId) {
   if (signaturePad) signaturePad.off(); // Alte Instanz entfernen
   signaturePad = new SignaturePad(canvas, {
     backgroundColor: 'rgba(255,255,255,0)',
-    penColor: 'rgb(0, 0, 0)'
+    penColor: 'rgb(0, 0, 0)',
      minWidth: 1.5, // Dünnere Linie für Pencil
     maxWidth: 3.5, // Natürlicher
     throttle: 16, // Glatter (weniger Ruckeln)
@@ -1945,6 +1945,7 @@ window.onload = () => {
 
 </body>
 </html>
+
 
 
 
