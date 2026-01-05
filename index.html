@@ -18,7 +18,7 @@
 
   <!-- Signature Pad für Signatur -->
   <script src="https://cdn.jsdelivr.net/npm/signature_pad@4.0.0/dist/signature_pad.umd.min.js"></script>
-
+  
 <style>
 :root {
   --primary-color: #4CAF50;
@@ -162,7 +162,7 @@ tr.complete { background-color: #e8f5e9; }
   background-color: #45a049;
   transform: translateY(-1px);
 } 
-
+  
 @media (max-width: 768px) {
   .btn-large {
     font-size: 20px;
@@ -254,7 +254,6 @@ tr.complete { background-color: #e8f5e9; }
 
   #signatureCanvas {
   touch-action: none; /* Verhindert Zoom/Scroll beim Zeichnen */
-  touch-action: manipulation; /* Besser für Pencil – schneller Response */
 }
 
 @media (max-width: 768px) {
@@ -262,7 +261,7 @@ tr.complete { background-color: #e8f5e9; }
     height: 300px !important;
   }
 }
-
+  
 </style>
 </head>
 <body>
@@ -528,14 +527,13 @@ tr.complete { background-color: #e8f5e9; }
     <h2>Signatur erstellen</h2>
     <p>Zeichnen Sie mit Maus oder Finger</p>
     <canvas id="signatureCanvas" style="border:1px solid #000; background:#fff; width:100%; height:300px; touch-action:none;"></canvas>
-    <canvas id="signatureCanvas" style="border:1px solid #000; background:#fff; width:100%; height:300px; touch-action:manipulation;"></canvas>
     <div style="margin-top:20px; text-align:center;">
       <button class="btn btn-delete" onclick="clearSignature()">Löschen</button>
       <button class="btn" style="background-color:#4CAF50; color:white; margin-left:20px;" onclick="saveSignature()">Speichern</button>
     </div>
   </div>
 </div>
-
+  
 <script>
 // Supabase Initialisierung
 const supabaseUrl = 'https://lkwtwlqehgytdeyytgmr.supabase.co'
@@ -720,7 +718,7 @@ async function artikelHinzufuegenFromModal() {
   }
   closeArtikelAddModal();
 }
-
+  
 function editArtikel(index) {
   const a = lager[index];
   aktuellBearbeitenIndex = index;
@@ -1333,7 +1331,7 @@ function updateArchivTabelle() {
     }
   });
 }
-
+  
 function isArchivComplete(k) {
   return k.ausgeliefert && k.abgerechnet && k.hersteller_bezahlt;
 }
@@ -1698,7 +1696,7 @@ function downloadKaufvertragPDF(k) {
 
   img.src = logoUrl;
 }
-
+  
 // Steuerbericht PDF
 function downloadSteuerPDF() {
   const { jsPDF } = window.jspdf;
@@ -1885,18 +1883,11 @@ function openSignatureModal(archivId) {
   if (signaturePad) signaturePad.off(); // Alte Instanz entfernen
   signaturePad = new SignaturePad(canvas, {
     backgroundColor: 'rgba(255,255,255,0)',
-    signaturePad = new SignaturePad(canvas, {
-    backgroundColor: 'rgba(255,255,255,0)', // Transparent (wie vorher)
     penColor: 'rgb(0, 0, 0)',
      minWidth: 1.5, // Dünnere Linie für Pencil
     maxWidth: 2.5, // Natürlicher
     throttle: 16, // Glatter (weniger Ruckeln)
     dotSize: 1.5
-    minWidth: 1.0, // Dünner Start
-    maxWidth: 2.0, // Natürliche Dicke
-    velocityFilterWeight: 0.7, // Velocity-basiert (glatter Übergang)
-    throttle: 8, // Niedriger throttle → flüssiger (weniger Lag beim Absetzen)
-    dotSize: 1.0
   });
 
   // Bestehende Signatur laden (falls vorhanden)
@@ -1939,7 +1930,7 @@ async function saveSignature() {
     await loadArchiv(); // Aktualisieren für PDF
   }
 }
-
+  
 // Init beim Laden
 window.onload = () => {
   supabaseClient.auth.getSession().then(({ data: { session } }) => {
@@ -1954,6 +1945,50 @@ window.onload = () => {
 
 </body>
 </html>
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
 
 
 
