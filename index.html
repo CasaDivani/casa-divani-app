@@ -1215,7 +1215,9 @@ async function kaufvertragAenderungSpeichern() {
   await loadArchiv(); // Alles neu laden
   await loadLager(); // Für Offene Verbindlichkeiten
   await updateForderungenVerbindlichkeiten(); // Explizit aktualisieren
-
+  await updateSteuerTabelle(); // Neu
+  await updateUmsatzTabelle(); // Neu
+  
   aktuellBearbeitenArchivIndex = null;
   document.getElementById('kaufvertragEditModal').style.display = 'none';
 }
@@ -1309,7 +1311,9 @@ function updateArchivTabelle() {
         await loadArchiv();
         await loadLager();
         await updateForderungenVerbindlichkeiten();
-
+        await updateSteuerTabelle(); // Neu
+        await updateUmsatzTabelle(); // Neu
+           
         // Bearbeiten-Modal öffnen
         editKaufvertrag(i);
       };
@@ -1990,6 +1994,7 @@ window.onload = () => {
 
 </body>
 </html>
+
 
 
 
