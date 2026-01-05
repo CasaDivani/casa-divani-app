@@ -18,7 +18,7 @@
 
   <!-- Signature Pad für Signatur -->
   <script src="https://cdn.jsdelivr.net/npm/signature_pad@4.0.0/dist/signature_pad.umd.min.js"></script>
-  
+
 <style>
 :root {
   --primary-color: #4CAF50;
@@ -162,7 +162,7 @@ tr.complete { background-color: #e8f5e9; }
   background-color: #45a049;
   transform: translateY(-1px);
 } 
-  
+
 @media (max-width: 768px) {
   .btn-large {
     font-size: 20px;
@@ -253,6 +253,7 @@ tr.complete { background-color: #e8f5e9; }
 }
 
   #signatureCanvas {
+  touch-action: none; /* Verhindert Zoom/Scroll beim Zeichnen */
   touch-action: manipulation; /* Besser für Pencil – schneller Response */
 }
 
@@ -261,7 +262,7 @@ tr.complete { background-color: #e8f5e9; }
     height: 300px !important;
   }
 }
-  
+
 </style>
 </head>
 <body>
@@ -526,6 +527,7 @@ tr.complete { background-color: #e8f5e9; }
     <span class="close" onclick="closeSignatureModal()">&times;</span>
     <h2>Signatur erstellen</h2>
     <p>Zeichnen Sie mit Maus oder Finger</p>
+    <canvas id="signatureCanvas" style="border:1px solid #000; background:#fff; width:100%; height:300px; touch-action:none;"></canvas>
     <canvas id="signatureCanvas" style="border:1px solid #000; background:#fff; width:100%; height:300px; touch-action:manipulation;"></canvas>
     <div style="margin-top:20px; text-align:center;">
       <button class="btn btn-delete" onclick="clearSignature()">Löschen</button>
@@ -533,7 +535,7 @@ tr.complete { background-color: #e8f5e9; }
     </div>
   </div>
 </div>
-  
+
 <script>
 // Supabase Initialisierung
 const supabaseUrl = 'https://lkwtwlqehgytdeyytgmr.supabase.co'
@@ -718,7 +720,7 @@ async function artikelHinzufuegenFromModal() {
   }
   closeArtikelAddModal();
 }
-  
+
 function editArtikel(index) {
   const a = lager[index];
   aktuellBearbeitenIndex = index;
@@ -1215,9 +1217,7 @@ async function kaufvertragAenderungSpeichern() {
   await loadArchiv(); // Alles neu laden
   await loadLager(); // Für Offene Verbindlichkeiten
   await updateForderungenVerbindlichkeiten(); // Explizit aktualisieren
-  await updateSteuerTabelle(); // Neu
-  await updateUmsatzTabelle(); // Neu
-  
+
   aktuellBearbeitenArchivIndex = null;
   document.getElementById('kaufvertragEditModal').style.display = 'none';
 }
@@ -1254,16 +1254,12 @@ function updateArchivTabelle() {
       const btnEdit = document.createElement('button');
       btnEdit.className = 'btn btn-edit'; btnEdit.innerText = 'Bearbeiten';
       btnEdit.onclick = () => editKaufvertrag(i);
-         btnStorno.onclick = async () => {
-        if (!confirm('Kaufvertrag stornieren? Die Zeile wird grau, Artikel zurück ins Lager und Bearbeiten öffnet sich.')) {
-          // Abgebrochen → visuelle Änderungen rückgängig machen
-          row.style.backgroundColor = '';
-          row.style.color = '';
-          row.style.textDecoration = '';
-          return;
-        }
+      const btnStorno = document.createElement('button');
+      btnStorno.className = 'btn btn-delete'; btnStorno.innerText = 'Stornieren';
+      btnStorno.onclick = async () => {
+        if (!confirm('Kaufvertrag stornieren? Die Zeile wird grau, Artikel zurück ins Lager und Bearbeiten öffnet sich.')) return;
 
-        // Storno durchführen – Zeile visuell grau machen
+        // Zeile visuell grau machen
         row.style.backgroundColor = '#f0f0f0';
         row.style.color = '#999';
         row.style.textDecoration = 'line-through';
@@ -1311,13 +1307,10 @@ function updateArchivTabelle() {
         await loadArchiv();
         await loadLager();
         await updateForderungenVerbindlichkeiten();
-        await updateSteuerTabelle(); // Neu
-        await updateUmsatzTabelle(); // Neu
-           
+
         // Bearbeiten-Modal öffnen
         editKaufvertrag(i);
       };
-      
       const btnPDF = document.createElement('button');
       btnPDF.className = 'btn btn-pdf'; btnPDF.innerText = 'Kaufvertrag PDF';
       btnPDF.onclick = () => downloadKaufvertragPDF(k);
@@ -1340,7 +1333,7 @@ function updateArchivTabelle() {
     }
   });
 }
-  
+
 function isArchivComplete(k) {
   return k.ausgeliefert && k.abgerechnet && k.hersteller_bezahlt;
 }
@@ -1463,7 +1456,7 @@ function updateUmsatzTabelle() {
 
 // Forderungen/Verbindlichkeiten
 function updateForderungenVerbindlichkeiten() {
-  // Offene Forderungen (Restbetrag > 0)
+  // Offene Forderungen (wie bisher)
   const forderungenTable = document.getElementById('forderungenTabelle');
   forderungenTable.innerHTML = '<tr><th>Kaufvertragsnummer</th><th>Kunde</th><th>Restbetrag €</th><th>Bezahlt</th><th>Aktionen</th></tr>';
   let sumForderungen = 0;
@@ -1486,45 +1479,6 @@ function updateForderungenVerbindlichkeiten() {
 
   document.getElementById('forderungenSumme').innerText = `Gesamte offene Forderungen: ${sumForderungen.toFixed(2)} €`;
 
-  // Offene Verbindlichkeiten
-  const verbindlichkeitenTable = document.getElementById('verbindlichkeitenTabelle');
-  verbindlichkeitenTable.innerHTML = '<tr><th>Kaufvertragsnummer</th><th>Artikelnummer</th><th>Name</th><th>AuftragsNr.</th><th>EK brutto €</th><th>Bezahlt</th><th>Aktionen</th></tr>';
-  let sumVerbindlichkeiten = 0;
-
-  // 1. Aus Archiv: Artikel mit kommission_herkunft = true und hersteller_bezahlt leer
-  archiv.forEach(k => {
-    if (!k.hersteller_bezahlt) { // Kein Datum gesetzt
-      k.artikel.forEach(a => {
-        if (a.kommission_herkunft) {
-          const row = verbindlichkeitenTable.insertRow();
-          row.insertCell(0).innerText = k.kaufvertragsnummer;
-          row.insertCell(1).innerText = a.artikelnummer;
-          row.insertCell(2).innerText = a.name;
-          row.insertCell(3).innerText = a.auftragsnummer || '-';
-          row.insertCell(4).innerText = a.ek.toFixed(2);
-          row.insertCell(5).innerText = k.hersteller_bezahlt || '-';
-          sumVerbindlichkeiten += a.ek;
-        }
-      });
-    }
-  });
-
-  // 2. Aus Lager: Artikel ohne Bezahlt-Datum
-  lager.forEach(a => {
-    if (!a.bezahlt) { // Kein Datum gesetzt
-      const row = verbindlichkeitenTable.insertRow();
-      row.insertCell(0).innerText = '-'; // Kein Kaufvertrag
-      row.insertCell(1).innerText = a.artikelnummer;
-      row.insertCell(2).innerText = a.name;
-      row.insertCell(3).innerText = a.auftragsnummer || '-';
-      row.insertCell(4).innerText = a.ek.toFixed(2);
-      row.insertCell(5).innerText = a.bezahlt || '-';
-      sumVerbindlichkeiten += a.ek;
-    }
-  });
-
-  document.getElementById('verbindlichkeitenSumme').innerText = `Gesamte offene Verbindlichkeiten: ${sumVerbindlichkeiten.toFixed(2)} €`;
-}
   // Offene Verbindlichkeiten (nur wenn Bezahlt leer)
   const verbindlichkeitenTable = document.getElementById('verbindlichkeitenTabelle');
   verbindlichkeitenTable.innerHTML = '<tr><th>Kaufvertragsnummer</th><th>Artikelnummer</th><th>Name</th><th>AuftragsNr.</th><th>EK brutto €</th><th>Bezahlt</th><th>Aktionen</th></tr>';
@@ -1744,7 +1698,7 @@ function downloadKaufvertragPDF(k) {
 
   img.src = logoUrl;
 }
-  
+
 // Steuerbericht PDF
 function downloadSteuerPDF() {
   const { jsPDF } = window.jspdf;
@@ -1929,9 +1883,15 @@ function openSignatureModal(archivId) {
   canvas.height = canvas.offsetHeight || 200;
 
   if (signaturePad) signaturePad.off(); // Alte Instanz entfernen
+  signaturePad = new SignaturePad(canvas, {
+    backgroundColor: 'rgba(255,255,255,0)',
     signaturePad = new SignaturePad(canvas, {
     backgroundColor: 'rgba(255,255,255,0)', // Transparent (wie vorher)
     penColor: 'rgb(0, 0, 0)',
+     minWidth: 1.5, // Dünnere Linie für Pencil
+    maxWidth: 2.5, // Natürlicher
+    throttle: 16, // Glatter (weniger Ruckeln)
+    dotSize: 1.5
     minWidth: 1.0, // Dünner Start
     maxWidth: 2.0, // Natürliche Dicke
     velocityFilterWeight: 0.7, // Velocity-basiert (glatter Übergang)
@@ -1979,7 +1939,7 @@ async function saveSignature() {
     await loadArchiv(); // Aktualisieren für PDF
   }
 }
-  
+
 // Init beim Laden
 window.onload = () => {
   supabaseClient.auth.getSession().then(({ data: { session } }) => {
@@ -1994,6 +1954,8 @@ window.onload = () => {
 
 </body>
 </html>
+
+
 
 
 
