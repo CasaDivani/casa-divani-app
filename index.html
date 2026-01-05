@@ -1454,7 +1454,7 @@ function updateUmsatzTabelle() {
 
 // Forderungen/Verbindlichkeiten
 function updateForderungenVerbindlichkeiten() {
-  // Offene Forderungen (wie bisher)
+  // Offene Forderungen (Restbetrag > 0)
   const forderungenTable = document.getElementById('forderungenTabelle');
   forderungenTable.innerHTML = '<tr><th>Kaufvertragsnummer</th><th>Kunde</th><th>Restbetrag €</th><th>Bezahlt</th><th>Aktionen</th></tr>';
   let sumForderungen = 0;
@@ -1477,14 +1477,14 @@ function updateForderungenVerbindlichkeiten() {
 
   document.getElementById('forderungenSumme').innerText = `Gesamte offene Forderungen: ${sumForderungen.toFixed(2)} €`;
 
-  // Offene Verbindlichkeiten (nur wenn Bezahlt leer)
+  // Offene Verbindlichkeiten
   const verbindlichkeitenTable = document.getElementById('verbindlichkeitenTabelle');
   verbindlichkeitenTable.innerHTML = '<tr><th>Kaufvertragsnummer</th><th>Artikelnummer</th><th>Name</th><th>AuftragsNr.</th><th>EK brutto €</th><th>Bezahlt</th><th>Aktionen</th></tr>';
   let sumVerbindlichkeiten = 0;
 
-  // Aus Archiv (kommission_herkunft = true und hersteller_bezahlt leer)
+  // 1. Aus Archiv: Artikel mit kommission_herkunft = true und hersteller_bezahlt leer
   archiv.forEach(k => {
-    if (!k.hersteller_bezahlt) {
+    if (!k.hersteller_bezahlt) { // Kein Datum gesetzt
       k.artikel.forEach(a => {
         if (a.kommission_herkunft) {
           const row = verbindlichkeitenTable.insertRow();
@@ -1500,9 +1500,9 @@ function updateForderungenVerbindlichkeiten() {
     }
   });
 
-  // Aus Lager (Bezahlt leer)
+  // 2. Aus Lager: Artikel ohne Bezahlt-Datum
   lager.forEach(a => {
-    if (!a.bezahlt) {
+    if (!a.bezahlt) { // Kein Datum gesetzt
       const row = verbindlichkeitenTable.insertRow();
       row.insertCell(0).innerText = '-'; // Kein Kaufvertrag
       row.insertCell(1).innerText = a.artikelnummer;
@@ -1945,6 +1945,7 @@ window.onload = () => {
 
 </body>
 </html>
+
 
 
 
