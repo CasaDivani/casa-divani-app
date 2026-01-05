@@ -1252,12 +1252,16 @@ function updateArchivTabelle() {
       const btnEdit = document.createElement('button');
       btnEdit.className = 'btn btn-edit'; btnEdit.innerText = 'Bearbeiten';
       btnEdit.onclick = () => editKaufvertrag(i);
-      const btnStorno = document.createElement('button');
-      btnStorno.className = 'btn btn-delete'; btnStorno.innerText = 'Stornieren';
-      btnStorno.onclick = async () => {
-        if (!confirm('Kaufvertrag stornieren? Die Zeile wird grau, Artikel zurück ins Lager und Bearbeiten öffnet sich.')) return;
+         btnStorno.onclick = async () => {
+        if (!confirm('Kaufvertrag stornieren? Die Zeile wird grau, Artikel zurück ins Lager und Bearbeiten öffnet sich.')) {
+          // Abgebrochen → visuelle Änderungen rückgängig machen
+          row.style.backgroundColor = '';
+          row.style.color = '';
+          row.style.textDecoration = '';
+          return;
+        }
 
-        // Zeile visuell grau machen
+        // Storno durchführen – Zeile visuell grau machen
         row.style.backgroundColor = '#f0f0f0';
         row.style.color = '#999';
         row.style.textDecoration = 'line-through';
@@ -1309,6 +1313,7 @@ function updateArchivTabelle() {
         // Bearbeiten-Modal öffnen
         editKaufvertrag(i);
       };
+      
       const btnPDF = document.createElement('button');
       btnPDF.className = 'btn btn-pdf'; btnPDF.innerText = 'Kaufvertrag PDF';
       btnPDF.onclick = () => downloadKaufvertragPDF(k);
@@ -1454,7 +1459,7 @@ function updateUmsatzTabelle() {
 
 // Forderungen/Verbindlichkeiten
 function updateForderungenVerbindlichkeiten() {
-  // Offene Forderungen (wie bisher)
+  // Offene Forderungen (Restbetrag > 0)
   const forderungenTable = document.getElementById('forderungenTabelle');
   forderungenTable.innerHTML = '<tr><th>Kaufvertragsnummer</th><th>Kunde</th><th>Restbetrag €</th><th>Bezahlt</th><th>Aktionen</th></tr>';
   let sumForderungen = 0;
@@ -1477,6 +1482,45 @@ function updateForderungenVerbindlichkeiten() {
 
   document.getElementById('forderungenSumme').innerText = `Gesamte offene Forderungen: ${sumForderungen.toFixed(2)} €`;
 
+  // Offene Verbindlichkeiten
+  const verbindlichkeitenTable = document.getElementById('verbindlichkeitenTabelle');
+  verbindlichkeitenTable.innerHTML = '<tr><th>Kaufvertragsnummer</th><th>Artikelnummer</th><th>Name</th><th>AuftragsNr.</th><th>EK brutto €</th><th>Bezahlt</th><th>Aktionen</th></tr>';
+  let sumVerbindlichkeiten = 0;
+
+  // 1. Aus Archiv: Artikel mit kommission_herkunft = true und hersteller_bezahlt leer
+  archiv.forEach(k => {
+    if (!k.hersteller_bezahlt) { // Kein Datum gesetzt
+      k.artikel.forEach(a => {
+        if (a.kommission_herkunft) {
+          const row = verbindlichkeitenTable.insertRow();
+          row.insertCell(0).innerText = k.kaufvertragsnummer;
+          row.insertCell(1).innerText = a.artikelnummer;
+          row.insertCell(2).innerText = a.name;
+          row.insertCell(3).innerText = a.auftragsnummer || '-';
+          row.insertCell(4).innerText = a.ek.toFixed(2);
+          row.insertCell(5).innerText = k.hersteller_bezahlt || '-';
+          sumVerbindlichkeiten += a.ek;
+        }
+      });
+    }
+  });
+
+  // 2. Aus Lager: Artikel ohne Bezahlt-Datum
+  lager.forEach(a => {
+    if (!a.bezahlt) { // Kein Datum gesetzt
+      const row = verbindlichkeitenTable.insertRow();
+      row.insertCell(0).innerText = '-'; // Kein Kaufvertrag
+      row.insertCell(1).innerText = a.artikelnummer;
+      row.insertCell(2).innerText = a.name;
+      row.insertCell(3).innerText = a.auftragsnummer || '-';
+      row.insertCell(4).innerText = a.ek.toFixed(2);
+      row.insertCell(5).innerText = a.bezahlt || '-';
+      sumVerbindlichkeiten += a.ek;
+    }
+  });
+
+  document.getElementById('verbindlichkeitenSumme').innerText = `Gesamte offene Verbindlichkeiten: ${sumVerbindlichkeiten.toFixed(2)} €`;
+}
   // Offene Verbindlichkeiten (nur wenn Bezahlt leer)
   const verbindlichkeitenTable = document.getElementById('verbindlichkeitenTabelle');
   verbindlichkeitenTable.innerHTML = '<tr><th>Kaufvertragsnummer</th><th>Artikelnummer</th><th>Name</th><th>AuftragsNr.</th><th>EK brutto €</th><th>Bezahlt</th><th>Aktionen</th></tr>';
@@ -1946,6 +1990,7 @@ window.onload = () => {
 
 </body>
 </html>
+
 
 
 
